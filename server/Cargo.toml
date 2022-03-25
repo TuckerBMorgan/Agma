@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 shared_code = { version = "0.1.0", path = "../shared_code" }
-flatbuffers = "*"
+bincode = "2.0.0-rc.1"

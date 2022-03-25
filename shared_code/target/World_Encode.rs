@@ -4,6 +4,7 @@ impl :: bincode :: Encode for World
     -> core :: result :: Result < (), :: bincode :: error :: EncodeError >
     {
         :: bincode :: Encode :: encode(& self.frame_number, encoder) ? ; ::
-        bincode :: Encode :: encode(& self.entities, encoder) ? ; Ok(())
+        bincode :: Encode :: encode(& self.entities, encoder) ? ; :: bincode
+        :: Encode :: encode(& self.inputs, encoder) ? ; Ok(())
     }
 }
