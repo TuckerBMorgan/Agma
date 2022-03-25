@@ -28,11 +28,12 @@ impl UpdateWorldMessage {
 
 #[derive(Encode, Decode, PartialEq, Debug)]
 pub enum ToServerMessageType {
-    AwkFrameMessage,
-    InputMessage
+    AwkFrameMessage = 1,
+    InputMessage = 2
 }
 
 #[derive(Encode, Decode, PartialEq, Debug)]
+#[repr(C)]
 pub struct InputWindowMessage {
     pub message_type: ToServerMessageType,
     pub input_messages: Vec<u8>
@@ -48,6 +49,7 @@ impl InputWindowMessage {
 }
 
 #[derive(Encode, Decode, PartialEq, Debug)]
+#[repr(C)]
 pub struct AwkFrameMessage {
     pub message_type: ToServerMessageType,
     pub frame_number: usize

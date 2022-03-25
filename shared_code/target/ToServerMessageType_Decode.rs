@@ -6,13 +6,13 @@ impl :: bincode :: Decode for ToServerMessageType
         let variant_index = < u32 as :: bincode :: Decode > :: decode(decoder)
         ? ; match variant_index
         {
-            0u32 => Ok(Self :: AwkFrameMessage { }), 1u32 =>
+            1 => Ok(Self :: AwkFrameMessage { }), 2 =>
             Ok(Self :: InputMessage { }), variant =>
             Err(:: bincode :: error :: DecodeError :: UnexpectedVariant
                 {
                     found : variant, type_name : "ToServerMessageType",
                     allowed : :: bincode :: error :: AllowedEnumVariants ::
-                    Range { min : 0, max : 1 }
+                    Allowed(& [1, 2])
                 })
         }
     }

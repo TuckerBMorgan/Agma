@@ -7,12 +7,12 @@ impl :: bincode :: Encode for ToServerMessageType
         {
             Self :: AwkFrameMessage =>
             {
-                < u32 as :: bincode :: Encode > :: encode(& (0u32), encoder) ?
-                ; Ok(())
+                < u32 as :: bincode :: Encode > :: encode(& (1), encoder) ? ;
+                Ok(())
             }, Self :: InputMessage =>
             {
-                < u32 as :: bincode :: Encode > :: encode(& (1u32), encoder) ?
-                ; Ok(())
+                < u32 as :: bincode :: Encode > :: encode(& (2), encoder) ? ;
+                Ok(())
             },
         }
     }
