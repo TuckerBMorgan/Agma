@@ -1,0 +1,11 @@
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+shared_code = { version = "0.1.0", path = "../shared_code" }
+bincode = "2.0.0-rc.1"
+storm = {git = "https://github.com/mooman219/storm"}

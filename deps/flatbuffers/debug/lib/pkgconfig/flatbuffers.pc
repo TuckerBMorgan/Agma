@@ -1,0 +1,10 @@
+prefix=${pcfiledir}/../..
+libdir=${prefix}/lib
+includedir=${prefix}/../include
+
+Name: FlatBuffers
+Description: Memory Efficient Serialization Library
+Version: 2.0.0
+
+Libs: -L"${libdir}" -lflatbuffers
+Cflags: -I"${includedir}"
