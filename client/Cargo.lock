@@ -1314,7 +1314,7 @@ checksum = "ef5430c8e36b713e13b48a9f709cc21e046723fe44ce34587b73a830203b533e"
 [[package]]
 name = "storm"
 version = "0.10.0"
-source = "git+https://github.com/mooman219/storm#1b7934b1123a4ec852ec2d2d6e1be492be59de12"
+source = "git+https://github.com/mooman219/storm#7e49fcbc507139b5fc537b48eae409f60b61f958"
 dependencies = [
  "cgmath",
  "claxon",
@@ -1339,7 +1339,7 @@ dependencies = [
 [[package]]
 name = "storm_macro"
 version = "0.1.0"
-source = "git+https://github.com/mooman219/storm#1b7934b1123a4ec852ec2d2d6e1be492be59de12"
+source = "git+https://github.com/mooman219/storm#7e49fcbc507139b5fc537b48eae409f60b61f958"
 dependencies = [
  "proc-macro2",
  "quote",

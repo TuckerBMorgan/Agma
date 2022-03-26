@@ -166,11 +166,14 @@ impl AgmaClientApp {
         if self.latest_game_state.is_some() {
             let game_state = self.latest_game_state.as_ref().unwrap();
             for (index, entity) in game_state.entities.iter().enumerate() {
-                for i in 0..108 {
-                    self.transform.set().eye.x = entity.pos.x;
-                    self.transform.set().eye.z = entity.pos.z;
-                }
+//                self.transform.set().eye.x = entity.pos.x;
+//                self.transform.set().eye.z = entity.pos.z;
             }
+            self.transform.set().eye.x = 0.0;
+            self.transform.set().eye.y = 0.0;
+            self.transform.set().eye.z = 0.0;
+
+            self.transform.set().direction = cgmath::Vector3::new(1.0, 0.0, 0.0);
 
             self.particle_buffer.set(&self.cube);
             self.transform_uniform.set(&mut self.transform);
@@ -182,6 +185,7 @@ impl AgmaClientApp {
 impl App for AgmaClientApp {
     fn new(ctx: &mut Context<Self>) -> Self {
         ctx.wait_periodic(Some(Duration::from_secs_f32(1.0 / 144.0)));
+        ctx.set_backface_culling(false);
         let mut transform = PerspectiveCamera::new(ctx.window_logical_size());
         let transform_uniform: Uniform<ModelUniform> = Uniform::new(ctx, &mut transform);
         let (send_to_client, recv_from_server) : (Sender<UpdateWorldMessage>, Receiver<UpdateWorldMessage>) = channel();
@@ -232,7 +236,7 @@ impl App for AgmaClientApp {
     }
 
     fn on_update(&mut self, ctx: &mut Context<Self>, _delta: f32) {
-        ctx.clear(ClearMode::new().with_color(RGBA8::BLACK).with_depth(0.0, DepthTest::Greater));
+        ctx.clear(ClearMode::new().with_color(RGBA8::BLUE).with_depth(0.0, DepthTest::Greater));
         // the message, it will be cut off.
 
         let from_server_message = self.recv_from_server.try_recv();

@@ -125,7 +125,7 @@ fn main() {
     let mut test_entities = vec![];
     for i in 0..1 {
         let mut entities = Entity::default();
-        entities.pos = Vec3::new(0.0, 0.0, i as f32 * 10.0f32);
+        entities.pos = Vec3::new(0.0, 0.0, 3.0);
         entities.id = i;
         test_entities.push(entities);
     }
