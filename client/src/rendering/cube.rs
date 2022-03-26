@@ -145,7 +145,7 @@ pub fn create_cube() -> [ModelVertex;36] {
     let mut cube_data = [ModelVertex::default();36];
     for i in 0..36 {
         let offset = i * 3;
-        cube_data[i].vertices = [g_vertex_buf32f32er_data[offset] * 100.0, g_vertex_buf32f32er_data[offset + 1] * 100.0, g_vertex_buf32f32er_data[offset + 2] * 100.0];
+        cube_data[i].vertices = [g_vertex_buf32f32er_data[offset] , g_vertex_buf32f32er_data[offset + 1] , g_vertex_buf32f32er_data[offset + 2] ];
         cube_data[i].vertex_color = [g_color_buf32f32er_data[offset], g_color_buf32f32er_data[offset + 1], g_color_buf32f32er_data[offset + 2]];
     }
     cube_data

@@ -22,7 +22,12 @@ mod rendering;
 use rendering::*;
 use storm::math::Float;
 
-pub struct Player {
+pub struct Camera {
+    /// Transform matix.
+    transform: PerspectiveCamera,
+    /// Transform uniform.
+    uniform: Uniform<ModelUniform>,
+    /// Position vector.
     pos: Vector3<f32>,
     /// Unnormalized direction vector.
     dir: Vector3<f32>,
@@ -39,9 +44,13 @@ pub struct Player {
     pub multiplier: f32,
 }
 
-impl Player {
-    pub fn new() -> Player {
-        Player {
+impl Camera {
+    pub fn new(ctx: &mut Context<AgmaClientApp>) -> Camera {
+        let mut transform = PerspectiveCamera::new(ctx.window_logical_size());
+        let uniform = Uniform::new(ctx, &mut transform);
+        Camera {
+            transform,
+            uniform,
             pos: Vector3::zero(),
             dir: Vector3::zero(),
             forward: Vector2::zero(),
@@ -54,7 +63,12 @@ impl Player {
         }
     }
 
-    pub fn look(&mut self, cursor_delta: Vector2<f32>) -> Vector3<f32> {
+    pub fn resize(&mut self, logical_size: Vector2<f32>) {
+        self.transform.set_size(logical_size);
+        self.uniform.set(&mut self.transform);
+    }
+
+    pub fn look(&mut self, cursor_delta: Vector2<f32>) {
         const SENSITIVITY: f32 = 0.12; // Degrees per delta unit.
 
         self.yaw += cursor_delta.x * SENSITIVITY;
@@ -77,21 +91,23 @@ impl Player {
         let y = self.pitch.sin_deg_fast();
         let z = cos_pitch * self.forward.y;
         self.dir = Vector3::new(x, y, z);
-        self.dir
+        self.transform.set().direction = self.dir;
+        self.uniform.set(&mut self.transform);
     }
 
-    pub fn update(&mut self, time_delta: f32) -> Vector3<f32> {
+    pub fn update(&mut self, time_delta: f32) {
         let forward_speed = time_delta * self.forward_speed * self.multiplier;
         let strafe_speed = time_delta * self.strafe_speed * self.multiplier;
         let vertical_speed = time_delta * self.vertical_speed * self.multiplier;
         self.pos.x += (self.forward.x * forward_speed) + (-self.forward.y * strafe_speed);
         self.pos.z += (self.forward.y * forward_speed) + (self.forward.x * strafe_speed);
         self.pos.y += vertical_speed;
-        // println!(
-        //     "Pos X {:.1} | Y {:.1} | Z {:.1}",
-        //     self.pos.x, self.pos.y, self.pos.z
-        // );
-        self.pos
+        self.transform.set().eye = self.pos;
+        self.uniform.set(&mut self.transform);
+    }
+
+    pub fn uniform(&self) -> &Uniform<ModelUniform> {
+        &self.uniform
     }
 }
 
@@ -109,7 +125,7 @@ pub struct AgmaClientApp {
     send_to_server: Sender<Vec<u8>>,
     previous_inputs: Vec<u8>,
     current_input_value: u8,
-    player: Player
+    camera: Camera
 }
 
 impl AgmaClientApp {
@@ -169,15 +185,9 @@ impl AgmaClientApp {
 //                self.transform.set().eye.x = entity.pos.x;
 //                self.transform.set().eye.z = entity.pos.z;
             }
-            self.transform.set().eye.x = 0.0;
-            self.transform.set().eye.y = 0.0;
-            self.transform.set().eye.z = 0.0;
-
-            self.transform.set().direction = cgmath::Vector3::new(1.0, 0.0, 0.0);
 
             self.particle_buffer.set(&self.cube);
-            self.transform_uniform.set(&mut self.transform);
-            self.model_shader.draw(&self.transform_uniform, &self.particle_buffer);
+            self.model_shader.draw(&self.camera.uniform(), &self.particle_buffer);
         }
     }
 }
@@ -227,7 +237,7 @@ impl App for AgmaClientApp {
             send_to_server,
             previous_inputs: vec![],
             current_input_value: 0,
-            player: Player::new()
+            camera: Camera::new(ctx)
         }
     }
 
@@ -235,8 +245,9 @@ impl App for AgmaClientApp {
         ctx.request_stop();
     }
 
-    fn on_update(&mut self, ctx: &mut Context<Self>, _delta: f32) {
+    fn on_update(&mut self, ctx: &mut Context<Self>, delta: f32) {
         ctx.clear(ClearMode::new().with_color(RGBA8::BLUE).with_depth(0.0, DepthTest::Greater));
+        ctx.set_backface_culling(false);
         // the message, it will be cut off.
 
         let from_server_message = self.recv_from_server.try_recv();
@@ -265,7 +276,7 @@ impl App for AgmaClientApp {
 
         self.previous_inputs.push(self.current_input_value);
         let to_server_input_message = InputWindowMessage::new(self.previous_inputs.clone());
-
+        self.camera.update(delta);
         let encoded: Vec<u8> = bincode::encode_to_vec(&to_server_input_message, config).unwrap();
         self.send_to_server.send(encoded);
         self.render_world();
@@ -278,10 +289,7 @@ impl App for AgmaClientApp {
         delta: cgmath::Vector2<f32>,
         focused: bool,
     ) {
-        if focused {
-            self.transform.set().direction = self.player.look(delta);
-            self.transform_uniform.set(&mut self.transform);
-        }
+        self.camera.look(delta);
     }
 
     fn on_key_pressed(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton, _is_repeat: bool) {
