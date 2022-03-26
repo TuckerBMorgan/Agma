@@ -5,10 +5,11 @@ use core::cmp::min;
 use storm::color::RGBA8;
 use storm::*;
 use storm::graphics::{
-    shaders::sprite::*, ClearMode, DisplayMode, Texture, TextureSection, Vsync, WindowSettings,
+    shaders::sprite::*, ClearMode, DisplayMode, Texture, TextureSection, Vsync, WindowSettings, DepthTest
 };
 use storm::asset::Asset;
 use storm::math::OrthographicCamera;
+use storm::math::PerspectiveCamera;
 use storm::cgmath::*;
 use storm::event::*;
 use storm::graphics::{Buffer, Uniform};
@@ -17,21 +18,98 @@ use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
 use std::time::{Duration, Instant};
 use std::thread::sleep;
+mod rendering;
+use rendering::*;
+use storm::math::Float;
 
-struct AgmaClientApp {
+pub struct Player {
+    pos: Vector3<f32>,
+    /// Unnormalized direction vector.
+    dir: Vector3<f32>,
+    /// Normalized horizontal xz plane direction vector.
+    forward: Vector2<f32>,
+    yaw: f32,
+    pitch: f32,
+    /// Positive is forward.
+    pub forward_speed: f32,
+    /// Positive is right.
+    pub strafe_speed: f32,
+    /// Positive is up.
+    pub vertical_speed: f32,
+    pub multiplier: f32,
+}
+
+impl Player {
+    pub fn new() -> Player {
+        Player {
+            pos: Vector3::zero(),
+            dir: Vector3::zero(),
+            forward: Vector2::zero(),
+            yaw: 0.0,
+            pitch: 0.0,
+            forward_speed: 0.0,
+            strafe_speed: 0.0,
+            vertical_speed: 0.0,
+            multiplier: 2.0,
+        }
+    }
+
+    pub fn look(&mut self, cursor_delta: Vector2<f32>) -> Vector3<f32> {
+        const SENSITIVITY: f32 = 0.12; // Degrees per delta unit.
+
+        self.yaw += cursor_delta.x * SENSITIVITY;
+        if self.yaw < 0.0 {
+            self.yaw = 360.0 - self.yaw;
+        } else if self.yaw > 360.0 {
+            self.yaw = self.yaw - 360.0;
+        }
+
+        self.pitch += cursor_delta.y * SENSITIVITY;
+        if self.pitch < -90.0 {
+            self.pitch = -90.0;
+        } else if self.pitch > 89.0 {
+            self.pitch = 89.0;
+        }
+
+        let cos_pitch = self.pitch.cos_deg_fast();
+        self.forward = Vector2::new(self.yaw.cos_deg_fast(), self.yaw.sin_deg_fast());
+        let x = cos_pitch * self.forward.x;
+        let y = self.pitch.sin_deg_fast();
+        let z = cos_pitch * self.forward.y;
+        self.dir = Vector3::new(x, y, z);
+        self.dir
+    }
+
+    pub fn update(&mut self, time_delta: f32) -> Vector3<f32> {
+        let forward_speed = time_delta * self.forward_speed * self.multiplier;
+        let strafe_speed = time_delta * self.strafe_speed * self.multiplier;
+        let vertical_speed = time_delta * self.vertical_speed * self.multiplier;
+        self.pos.x += (self.forward.x * forward_speed) + (-self.forward.y * strafe_speed);
+        self.pos.z += (self.forward.y * forward_speed) + (self.forward.x * strafe_speed);
+        self.pos.y += vertical_speed;
+        // println!(
+        //     "Pos X {:.1} | Y {:.1} | Z {:.1}",
+        //     self.pos.x, self.pos.y, self.pos.z
+        // );
+        self.pos
+    }
+}
+
+
+pub struct AgmaClientApp {
     encoded_world_states: RingBuffer<(usize, Vec<u8>)>,
-    transform: OrthographicCamera,
+    transform: PerspectiveCamera,
     default_texture: Texture,
-    transform_uniform: Uniform<SpriteUniform>,
-    sprite_shader: SpriteShader,
-    sprites: Vec<Sprite>,
-    particle_buffer: Buffer<Sprite>,
+    transform_uniform: Uniform<ModelUniform>,
+    model_shader: ModelShader,
+    cube: [ModelVertex;36],
+    particle_buffer: Buffer<ModelVertex>,
     latest_game_state: Option<World>,
     recv_from_server: Receiver<UpdateWorldMessage>,
     send_to_server: Sender<Vec<u8>>,
-    previous_inputs: RingBuffer<u8>,
-    current_input_value: u8
-
+    previous_inputs: Vec<u8>,
+    current_input_value: u8,
+    player: Player
 }
 
 impl AgmaClientApp {
@@ -66,7 +144,6 @@ impl AgmaClientApp {
 
                     if self.latest_game_state.is_none() || self.latest_game_state.as_ref().unwrap().frame_number < message.current_frame_number {
                         self.latest_game_state = Some(bincode::decode_from_slice(&message.data, config).unwrap().0);
-
                     }
                 }
                 else {
@@ -88,28 +165,25 @@ impl AgmaClientApp {
     fn render_world(&mut self) {
         if self.latest_game_state.is_some() {
             let game_state = self.latest_game_state.as_ref().unwrap();
-            if game_state.entities.len() > self.sprites.len() {
-                let missing_amount = game_state.entities.len() - self.sprites.len();
-                for i in 0..missing_amount {
-                    let new_sprite = Sprite::new(Vector3::new(std::f32::INFINITY, std::f32::INFINITY, std::f32::INFINITY), Vector2::new(1.0, 1.0), TextureSection::full(), RGBA8::WHITE, 0.0);
-                    self.sprites.push(Sprite::default());
+            for (index, entity) in game_state.entities.iter().enumerate() {
+                for i in 0..108 {
+                    self.transform.set().eye.x = entity.pos.x;
+                    self.transform.set().eye.z = entity.pos.z;
                 }
             }
-            for (index, entity) in game_state.entities.iter().enumerate() {
-                self.sprites[index].pos = Vector3::new(entity.pos.x, entity.pos.z, 0.0);
-            }
-            self.particle_buffer.set(&self.sprites);
-            self.sprite_shader.draw(&self.transform_uniform, &self.default_texture, &[&self.particle_buffer]);
+
+            self.particle_buffer.set(&self.cube);
+            self.transform_uniform.set(&mut self.transform);
+            self.model_shader.draw(&self.transform_uniform, &self.particle_buffer);
         }
     }
 }
 
 impl App for AgmaClientApp {
     fn new(ctx: &mut Context<Self>) -> Self {
-
         ctx.wait_periodic(Some(Duration::from_secs_f32(1.0 / 144.0)));
-        let mut transform = OrthographicCamera::new(ctx.window_logical_size());
-        let transform_uniform: Uniform<SpriteUniform> = Uniform::new(ctx, &mut transform);
+        let mut transform = PerspectiveCamera::new(ctx.window_logical_size());
+        let transform_uniform: Uniform<ModelUniform> = Uniform::new(ctx, &mut transform);
         let (send_to_client, recv_from_server) : (Sender<UpdateWorldMessage>, Receiver<UpdateWorldMessage>) = channel();
         let (send_to_server, recv_from_client) : (Sender<Vec<u8>>, Receiver<Vec<u8>>) = channel();
         thread::spawn(move||{
@@ -141,14 +215,15 @@ impl App for AgmaClientApp {
             transform,
             default_texture: ctx.default_texture(),
             transform_uniform,
-            sprite_shader: SpriteShader::new(ctx),
-            sprites: vec![],
+            model_shader: ModelShader::new(ctx),
+            cube: create_cube(),
             particle_buffer: Buffer::new(ctx),
             latest_game_state: None,
             recv_from_server,
             send_to_server,
-            previous_inputs: RingBuffer::new(),
-            current_input_value: 0 
+            previous_inputs: vec![],
+            current_input_value: 0,
+            player: Player::new()
         }
     }
 
@@ -157,8 +232,7 @@ impl App for AgmaClientApp {
     }
 
     fn on_update(&mut self, ctx: &mut Context<Self>, _delta: f32) {
-        self.current_input_value = 0;
-        ctx.clear(ClearMode::color_depth(RGBA8::BLACK));
+        ctx.clear(ClearMode::new().with_color(RGBA8::BLACK).with_depth(0.0, DepthTest::Greater));
         // the message, it will be cut off.
 
         let from_server_message = self.recv_from_server.try_recv();
@@ -170,31 +244,58 @@ impl App for AgmaClientApp {
             Err(_) => {}
         }
 
+        match &mut self.latest_game_state {
+            Some(world) => {
+                world.input = self.current_input_value;
+                world.tick();
+            },
+            None => {
+
+            }
+        }
+
         let config = config::standard();
-        self.previous_inputs.add_new_data(self.current_input_value);
-        let to_server_input_message = InputWindowMessage::new(self.previous_inputs.storage.clone());
+        if self.previous_inputs.len() >= 16 {
+            self.previous_inputs.remove(0);
+        }
+
+        self.previous_inputs.push(self.current_input_value);
+        let to_server_input_message = InputWindowMessage::new(self.previous_inputs.clone());
+
         let encoded: Vec<u8> = bincode::encode_to_vec(&to_server_input_message, config).unwrap();
         self.send_to_server.send(encoded);
         self.render_world();
+
+    }
+
+    fn on_cursor_delta(
+        &mut self,
+        _ctx: &mut Context<Self>,
+        delta: cgmath::Vector2<f32>,
+        focused: bool,
+    ) {
+        if focused {
+            self.transform.set().direction = self.player.look(delta);
+            self.transform_uniform.set(&mut self.transform);
+        }
     }
 
     fn on_key_pressed(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton, _is_repeat: bool) {
         match key {
             KeyboardButton::Escape => ctx.request_stop(),
             KeyboardButton::W => {
-                self.current_input_value &= 1;                
-            },
-            KeyboardButton::A => {
-                self.current_input_value &= 2;
+                self.current_input_value |= 1;
             },
             KeyboardButton::S => {
-                self.current_input_value &= 4;
+                self.current_input_value |= 2;
+            },
+            KeyboardButton::A => {
+                self.current_input_value |= 4;
             },
             KeyboardButton::D => {
-                self.current_input_value &= 8;
+                self.current_input_value |= 8;
             },
             _ => {
-
             }
         }
     }
@@ -202,6 +303,18 @@ impl App for AgmaClientApp {
     fn on_key_released(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton) {
         match key {
             KeyboardButton::Escape => ctx.request_stop(),
+            KeyboardButton::W => {
+                self.current_input_value &= !(1);
+            },
+            KeyboardButton::S => {
+                self.current_input_value &= !(2);
+            },
+            KeyboardButton::A => {
+                self.current_input_value &= !(4);
+            },
+            KeyboardButton::D => {
+                self.current_input_value &= !(8);
+            },
             _ => {
 
             }

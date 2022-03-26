@@ -1,0 +1,12 @@
+C:\Users\Tucker\source\agma\client\target\debug\deps\thiserror_impl-d5926475e72a849c.dll: C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\lib.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\ast.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\attr.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\expand.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\fmt.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\generics.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\prop.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\valid.rs
+
+C:\Users\Tucker\source\agma\client\target\debug\deps\thiserror_impl-d5926475e72a849c.d: C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\lib.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\ast.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\attr.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\expand.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\fmt.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\generics.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\prop.rs C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\valid.rs
+
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\lib.rs:
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\ast.rs:
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\attr.rs:
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\expand.rs:
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\fmt.rs:
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\generics.rs:
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\prop.rs:
+C:\Users\Tucker\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.30\src\valid.rs:

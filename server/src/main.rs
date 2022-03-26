@@ -28,10 +28,10 @@ pub fn produce_state_difference(old_state: &Vec<u8>, new_state: &Vec<u8>) -> Vec
 }
 
 pub struct PlayerConnection {
-    pub previous_game_state: RingBuffer,
+    pub previous_game_state: RingBuffer<(usize, Vec<u8>)>,
     pub last_awked_game_state: usize,
     pub udp_socket: UdpSocket,
-    pub inputs: Vec<PlayerInput>
+    pub inputs: Vec<u8>
 }
 
 impl PlayerConnection {
@@ -65,20 +65,20 @@ impl PlayerConnection {
                 to_player_message.message_type = ToPlayerMessageType::UpdateWorld;
                 let encoded: Vec<u8> = bincode::encode_to_vec(&to_player_message, config).unwrap();
                 self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
-                self.previous_game_state.add_new_state((frame_number, buffer));
+                self.previous_game_state.add_new_data((frame_number, buffer));
             }
             else {
                 let mut to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
                 let encoded: Vec<u8> = bincode::encode_to_vec(&to_player_message, config).unwrap();
                 self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
-                self.previous_game_state.add_new_state((frame_number, buffer));   
+                self.previous_game_state.add_new_data((frame_number, buffer));   
             }
         }
         else {
             let mut to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
             let encoded: Vec<u8> = bincode::encode_to_vec(&to_player_message, config).unwrap();
             self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
-            self.previous_game_state.add_new_state((frame_number, buffer));
+            self.previous_game_state.add_new_data((frame_number, buffer));
         }
     }
 
@@ -94,20 +94,22 @@ impl PlayerConnection {
                     }
 
                     let buf = &mut buf[..amt];
-                    let (msg, len) : (PlayerToServerMessage, usize) = bincode::decode_from_slice(&buf[..], config).unwrap();
-                    match msg.message_type {
-                        ToServerMessageType::AwkFrameMessage => {
-                            if msg.data as usize > self.last_awked_game_state {
-                                println!("Player 1 awked frame number {}", msg.data);
-                                self.last_awked_game_state = msg.data as usize;
+                    let message_type = buf[0];
+                    match message_type {
+                        AWK_FRAME_MESSAGE => {
+                            let (msg, len) : (AwkFrameMessage, usize) = bincode::decode_from_slice(&buf[..], config).unwrap();
+                            if msg.frame_number > self.last_awked_game_state {
+                                self.last_awked_game_state = msg.frame_number;
                             }
                         },
-                        ToServerMessageType::InputMessage => {
-                            println!("Player 1 just sent input message {}", msg.data);
-                            self.inputs.push(PlayerInput::new(msg.data));
-                            if self.inputs.len() > NUMBER_OF_PLAYER_INPUTS_IN_BUFFER {
-                                self.inputs.pop();
+                        INPUT_WINDOW_MESSAGE => {
+                            let (msg, len) : (InputWindowMessage, usize) = bincode::decode_from_slice(&buf[..], config).unwrap();
+                            if msg.input_messages.len() <= 16 {
+                                self.inputs = msg.input_messages;
                             }
+                        },
+                        _ => {
+
                         }
                     }
                 }
@@ -123,7 +125,7 @@ fn main() {
     let mut test_entities = vec![];
     for i in 0..1 {
         let mut entities = Entity::default();
-        entities.pos = Vec3::new(0.0, 0.0, i as f32);
+        entities.pos = Vec3::new(0.0, 0.0, i as f32 * 10.0f32);
         entities.id = i;
         test_entities.push(entities);
     }
@@ -131,9 +133,10 @@ fn main() {
     let config = config::standard();
     loop {
         player_connection.check_on_player();
-        w.inputs = player_connection.inputs;
-        player_connection.inputs = vec![];
-
+        if player_connection.inputs.len() > 0 {
+            let input = player_connection.inputs.remove(0);
+            w.input = input;
+        }
         w.tick();
         let encoded: Vec<u8> = bincode::encode_to_vec(&w, config).unwrap();
         player_connection.update_player_with_new_game_state(encoded, w.frame_number);        

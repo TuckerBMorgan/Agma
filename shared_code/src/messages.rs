@@ -26,40 +26,47 @@ impl UpdateWorldMessage {
     }
 }
 
+pub const PLAYER_MESSAGE_TYPE_BASE : u8 = 0;
+
+/*
 #[derive(Encode, Decode, PartialEq, Debug)]
 pub enum ToServerMessageType {
     AwkFrameMessage = 1,
     InputMessage = 2
 }
+*/
 
+pub const INPUT_WINDOW_MESSAGE : u8 = PLAYER_MESSAGE_TYPE_BASE + 1;
 #[derive(Encode, Decode, PartialEq, Debug)]
 #[repr(C)]
 pub struct InputWindowMessage {
-    pub message_type: ToServerMessageType,
+    pub message_type: u8,
     pub input_messages: Vec<u8>
 }
 
 impl InputWindowMessage {
     pub fn new(inputs: Vec<u8>) -> InputWindowMessage {
         InputWindowMessage {
-            message_type: ToServerMessageType::InputMessage,
+            message_type: INPUT_WINDOW_MESSAGE,
             input_messages: inputs
         }
     }
 }
 
+pub const AWK_FRAME_MESSAGE : u8 = INPUT_WINDOW_MESSAGE + 1;
 #[derive(Encode, Decode, PartialEq, Debug)]
 #[repr(C)]
 pub struct AwkFrameMessage {
-    pub message_type: ToServerMessageType,
+    pub message_type: u8,
     pub frame_number: usize
 }
 
 impl AwkFrameMessage {
     pub fn new(frame_number: usize) -> AwkFrameMessage {
         AwkFrameMessage {
-            message_type: ToServerMessageType::AwkFrameMessage,
+            message_type: AWK_FRAME_MESSAGE,
             frame_number
         }
     }
 }
+

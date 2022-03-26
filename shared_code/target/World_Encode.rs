@@ -5,6 +5,6 @@ impl :: bincode :: Encode for World
     {
         :: bincode :: Encode :: encode(& self.frame_number, encoder) ? ; ::
         bincode :: Encode :: encode(& self.entities, encoder) ? ; :: bincode
-        :: Encode :: encode(& self.inputs, encoder) ? ; Ok(())
+        :: Encode :: encode(& self.input, encoder) ? ; Ok(())
     }
 }
