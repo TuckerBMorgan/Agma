@@ -1,7 +1,4 @@
-use storm::color::RGBA8;
-use storm::graphics::{TextureSection, VertexAttribute, VertexDescriptor, VertexInputType, VertexOutputType};
-use storm::math::AABB2D;
-use storm::cgmath::*;
+use storm::graphics::{VertexAttribute, VertexDescriptor, VertexInputType, VertexOutputType};
 use storm::graphics::VertexInstancing;
 /// Configuration settings for a sprite.
 #[repr(C)]
@@ -24,18 +21,6 @@ impl Default for ModelVertex {
         ModelVertex {
             vertices: [0.0, 0.0, 0.0],
             vertex_color: [0.0, 0.0, 0.0]
-        }
-    }
-}
-
-impl ModelVertex {
-    pub fn new(
-        vertices: [f32;3],
-        vertex_color: [f32;3]
-    ) -> ModelVertex {
-        ModelVertex {
-            vertices,
-            vertex_color
         }
     }
 }

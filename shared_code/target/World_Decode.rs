@@ -6,7 +6,8 @@ impl :: bincode :: Decode for World
         Ok(Self
            {
                frame_number : :: bincode :: Decode :: decode(decoder) ?,
-               entities : :: bincode :: Decode :: decode(decoder) ?, input :
+               entities : :: bincode :: Decode :: decode(decoder) ?,
+               transforms : :: bincode :: Decode :: decode(decoder) ?, input :
                :: bincode :: Decode :: decode(decoder) ?,
            })
     }

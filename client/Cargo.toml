@@ -9,3 +9,5 @@ edition = "2021"
 shared_code = { version = "0.1.0", path = "../shared_code" }
 bincode = "2.0.0-rc.1"
 storm = {git = "https://github.com/mooman219/storm"}
+rand = "*"
+serde = { version = "1.0", features = ["derive"] }

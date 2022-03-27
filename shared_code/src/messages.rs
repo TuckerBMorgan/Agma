@@ -1,13 +1,13 @@
 // Example IDL file for our monster's schema.
-use bincode::{config, Decode, Encode};
- 
-#[derive(Encode, Decode, PartialEq, Debug)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum ToPlayerMessageType {
     UpdateWorld,
     StateWorld
 }
  
-#[derive(Encode, Decode, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct UpdateWorldMessage {
     pub message_type: ToPlayerMessageType,
     pub current_frame_number: usize,
@@ -28,16 +28,8 @@ impl UpdateWorldMessage {
 
 pub const PLAYER_MESSAGE_TYPE_BASE : u8 = 0;
 
-/*
-#[derive(Encode, Decode, PartialEq, Debug)]
-pub enum ToServerMessageType {
-    AwkFrameMessage = 1,
-    InputMessage = 2
-}
-*/
-
 pub const INPUT_WINDOW_MESSAGE : u8 = PLAYER_MESSAGE_TYPE_BASE + 1;
-#[derive(Encode, Decode, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[repr(C)]
 pub struct InputWindowMessage {
     pub message_type: u8,
@@ -54,7 +46,7 @@ impl InputWindowMessage {
 }
 
 pub const AWK_FRAME_MESSAGE : u8 = INPUT_WINDOW_MESSAGE + 1;
-#[derive(Encode, Decode, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[repr(C)]
 pub struct AwkFrameMessage {
     pub message_type: u8,

@@ -1,9 +1,8 @@
-use crate::*;
-use bincode::{config, Decode, Encode};
+use serde::{Serialize, Deserialize};
 
 use std::ops::{Mul, Add, Sub};
 
-#[derive(Encode, Decode, PartialEq, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
@@ -109,7 +108,7 @@ impl Vec3 {
     }
 }
 
-#[derive(Encode, Decode, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Matrix3x3 {
     m11:f32,
     m12:f32,

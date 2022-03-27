@@ -1,8 +1,9 @@
 use crate::*;
+use cgmath::*;
+use serde::{Serialize, Deserialize};
+use std::ops::Mul;
 
-use bincode::{config, Decode, Encode};
-
-#[derive(Encode, Decode, PartialEq, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
 pub struct PlayerInput {
     input_values: u8
 }
@@ -16,29 +17,30 @@ impl PlayerInput {
 }
 
 
-#[derive(Encode, Decode, PartialEq, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
 pub struct World {
     pub frame_number: usize,
     pub entities: Vec<Entity>,
+    pub transforms: Vec<TransformComponent>,
     pub input: u8
 }
 
 impl World {
     pub fn tick(&mut self) {
         self.frame_number += 1;
-        for entity in self.entities.iter_mut() {
+        for transform_componenet in self.transforms.iter_mut() {
             if self.input > 0 {
                 if self.input & 1 > 0 {
-                    entity.pos.z += 1.0f32;
+                    transform_componenet.transform = transform_componenet.transform.mul(Matrix4::from_translation(Vector3::new(0.0f32, 0.0, 1.0)));
                 }
                 if self.input & 2 > 0 {
-                    entity.pos.z -= 1.0f32;
+                    transform_componenet.transform = transform_componenet.transform.mul(Matrix4::from_translation(Vector3::new(0.0f32, 0.0, -1.0)));
                 }
                 if self.input & 4 > 0 {
-                    entity.pos.x -= 1.0f32;
+                    transform_componenet.transform = transform_componenet.transform.mul(Matrix4::from_translation(Vector3::new(1.0f32, 0.0, 0.0)));
                 }
                 if self.input & 8 > 0{
-                    entity.pos.x += 1.0f32;
+                    transform_componenet.transform = transform_componenet.transform.mul(Matrix4::from_translation(Vector3::new(-1.0f32, 0.0, 0.0)));
                 }
             }
         }

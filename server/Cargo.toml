@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 shared_code = { version = "0.1.0", path = "../shared_code" }
 bincode = "2.0.0-rc.1"
+cgmath = { version = "0.18.0", features = ["serde"] }

@@ -1,6 +1,5 @@
 use storm::Context;
-use storm::graphics::{Buffer, std140,DrawMode, Shader, ShaderDescriptor, Texture, Uniform, TextureFiltering
-};
+use storm::graphics::{Buffer, std140,DrawMode, Shader, ShaderDescriptor,Uniform};
 use storm::math::PerspectiveCamera;
 use crate::rendering::ModelVertex;
 use storm::cgmath::Matrix4;
@@ -53,6 +52,7 @@ impl ModelShader {
     }
 }
 
+/*
 pub struct ModelShaderPass {
     pub uniform: Uniform<ModelUniform>,
     pub buffer: Buffer<ModelVertex>,
@@ -75,3 +75,4 @@ impl ModelShaderPass {
         self.uniform.set(ModelUniform::new(transform));
     }
 }
+*/
