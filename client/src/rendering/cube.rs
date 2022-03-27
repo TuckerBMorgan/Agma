@@ -140,7 +140,11 @@ static const GLf32loat g_normal_buf32f32er_data[] = {
 
 };
 */
-
+/*
+pub create_triangle() -> [ModelVertex; 3] {
+    let mut cube_data = [ModelVertex::default();3];
+}
+*/
 pub fn create_cube() -> [ModelVertex;36] {
     let mut cube_data = [ModelVertex::default();36];
     for i in 0..36 {

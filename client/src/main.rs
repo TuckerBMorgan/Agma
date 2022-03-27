@@ -51,7 +51,7 @@ impl Camera {
         Camera {
             transform,
             uniform,
-            pos: Vector3::zero(),
+            pos: Vector3::new(0.0, 0.0, 0.0),
             dir: Vector3::zero(),
             forward: Vector2::zero(),
             yaw: 0.0,
@@ -292,46 +292,64 @@ impl App for AgmaClientApp {
         self.camera.look(delta);
     }
 
-    fn on_key_pressed(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton, _is_repeat: bool) {
+    fn on_key_pressed(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton, is_repeat: bool) {
+        if is_repeat {
+            return;
+        }
         match key {
             KeyboardButton::Escape => ctx.request_stop(),
             KeyboardButton::W => {
-                self.current_input_value |= 1;
-            },
-            KeyboardButton::S => {
-                self.current_input_value |= 2;
-            },
-            KeyboardButton::A => {
-                self.current_input_value |= 4;
-            },
-            KeyboardButton::D => {
-                self.current_input_value |= 8;
-            },
-            _ => {
+                self.camera.forward_speed += 1.0;
             }
+            KeyboardButton::S => {
+                self.camera.forward_speed -= 1.0;
+            }
+            KeyboardButton::A => {
+                self.camera.strafe_speed -= 1.0;
+            }
+            KeyboardButton::D => {
+                self.camera.strafe_speed += 1.0;
+            }
+            KeyboardButton::Space => {
+                self.camera.vertical_speed += 1.0;
+            }
+            KeyboardButton::LShift => {
+                self.camera.vertical_speed -= 1.0;
+            }
+            KeyboardButton::LControl => {
+                self.camera.multiplier += 4.0;
+            }
+            _ => {}
         }
     }
 
-    fn on_key_released(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton) {
+    fn on_key_released(&mut self, _ctx: &mut Context<Self>, key: event::KeyboardButton) {
         match key {
-            KeyboardButton::Escape => ctx.request_stop(),
             KeyboardButton::W => {
-                self.current_input_value &= !(1);
-            },
-            KeyboardButton::S => {
-                self.current_input_value &= !(2);
-            },
-            KeyboardButton::A => {
-                self.current_input_value &= !(4);
-            },
-            KeyboardButton::D => {
-                self.current_input_value &= !(8);
-            },
-            _ => {
-
+                self.camera.forward_speed -= 1.0;
             }
+            KeyboardButton::S => {
+                self.camera.forward_speed += 1.0;
+            }
+            KeyboardButton::A => {
+                self.camera.strafe_speed += 1.0;
+            }
+            KeyboardButton::D => {
+                self.camera.strafe_speed -= 1.0;
+            }
+            KeyboardButton::Space => {
+                self.camera.vertical_speed -= 1.0;
+            }
+            KeyboardButton::LShift => {
+                self.camera.vertical_speed += 1.0;
+            }
+            KeyboardButton::LControl => {
+                self.camera.multiplier -= 4.0;
+            }
+            _ => {}
         }
     }
+
 }
 
 fn main() {

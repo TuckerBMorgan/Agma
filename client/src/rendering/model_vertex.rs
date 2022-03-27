@@ -2,7 +2,7 @@ use storm::color::RGBA8;
 use storm::graphics::{TextureSection, VertexAttribute, VertexDescriptor, VertexInputType, VertexOutputType};
 use storm::math::AABB2D;
 use storm::cgmath::*;
-
+use storm::graphics::VertexInstancing;
 /// Configuration settings for a sprite.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -12,8 +12,8 @@ pub struct ModelVertex {
 }
 
 impl VertexDescriptor for ModelVertex {
+    const INSTANCING: VertexInstancing = VertexInstancing::none();
     const ATTRIBUTES: &'static [VertexAttribute] = &[
-        // Pos, Size, Texture, Color::RGBA8, Rotation
         VertexAttribute::new(3, VertexInputType::F32, VertexOutputType::F32),
         VertexAttribute::new(3, VertexInputType::F32, VertexOutputType::F32),
     ];
