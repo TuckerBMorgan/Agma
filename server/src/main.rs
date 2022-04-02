@@ -92,20 +92,23 @@ impl PlayerConnection {
                     }
 
                     let buf = &mut buf[..amt];
-                    let message_type = buf[0];
+                    let message_type = PlayerToServerMessage::from_u8(buf[0]);
                     match message_type {
-                        AWK_FRAME_MESSAGE => {
+                        PlayerToServerMessage::AwkFrameMessage => {
                             let (msg, _len) : (AwkFrameMessage, usize) = bincode::serde::decode_from_slice(&buf[..], config).unwrap();
                             if msg.frame_number > self.last_awked_game_state {
                                 self.last_awked_game_state = msg.frame_number;
                             }
                         },
-                        INPUT_WINDOW_MESSAGE => {
-                            let (msg, _len) : (InputWindowMessage, usize) = bincode::serde::decode_from_slice(&buf[..], config).unwrap();
+                        PlayerToServerMessage::KeyboardActionMessage => {
+                            let (msg, _len) : (KeyboardActionMessage, usize) = bincode::serde::decode_from_slice(&buf[..], config).unwrap();
                             if msg.input_messages.len() <= 16 {
                                 self.inputs = msg.input_messages;
                             }
                         },
+                        PlayerToServerMessage::MouseAction => {
+                            println!("Ignoring these messages for now");
+                        }
                         _ => {
 
                         }
@@ -121,10 +124,8 @@ fn main() {
     let mut player_connection = PlayerConnection::new();
     let mut w = World::default();
     for i in 0..1 {
-        let mut entities = Entity::default();
-        entities.id = i;
-        w.entities.push(entities);
-        w.transforms.push(TransformComponent::new(Matrix4::from_translation(Vector3::new(0.0f32, 0.0, 0.0))));
+        let entity_id = w.spawn_entity();
+        w.add_component(entity_id, TransformComponent::new(Matrix4::from_translation(Vector3::new(0.0f32, 0.0, 0.0))));
     }
     let config = config::standard();
     loop {

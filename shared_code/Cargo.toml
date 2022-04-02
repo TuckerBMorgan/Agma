@@ -9,3 +9,5 @@ edition = "2021"
 bincode = {version = "2.0.0-rc.1", features = ["serde"]}
 serde = { version = "1.0", features = ["derive"] }
 cgmath = { version = "0.18.0", features = ["serde"] }
+slotmap = {version = "1.0", features = ["serde"]}
+erased-serde = "0.3"

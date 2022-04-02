@@ -231,9 +231,11 @@ name = "client"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "log",
  "rand",
  "serde",
  "shared_code",
+ "simple-logging",
  "storm",
 ]
 
@@ -1112,7 +1114,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "instant",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.2.12",
  "smallvec",
  "winapi",
 ]
@@ -1222,6 +1224,12 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
+version = "0.1.57"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41cc0f7e4d5d4544e8861606a285bb08d3e70712ccc7d2b84d7c0ccfaf4b05ce"
+
+[[package]]
+name = "redox_syscall"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ae183fc1b06c149f0c1793e1eb447c8b04bfe46d48e9e48bfb8d2d7ed64ecf0"
@@ -1317,6 +1325,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 
 [[package]]
+name = "simple-logging"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b00d48e85675326bb182a2286ea7c1a0b264333ae10f27a937a72be08628b542"
+dependencies = [
+ "lazy_static",
+ "log",
+ "thread-id",
+]
+
+[[package]]
 name = "simplelog"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1370,7 +1389,7 @@ checksum = "ef5430c8e36b713e13b48a9f709cc21e046723fe44ce34587b73a830203b533e"
 [[package]]
 name = "storm"
 version = "0.10.0"
-source = "git+https://github.com/mooman219/storm#36ae739a4e45540935abd2e2584bc2afafd020cd"
+source = "git+https://github.com/mooman219/storm#da60a7ad4415a3e02409e9b51723622a9f8c7819"
 dependencies = [
  "cgmath",
  "claxon",
@@ -1395,7 +1414,7 @@ dependencies = [
 [[package]]
 name = "storm_macro"
 version = "0.1.0"
-source = "git+https://github.com/mooman219/storm#36ae739a4e45540935abd2e2584bc2afafd020cd"
+source = "git+https://github.com/mooman219/storm#da60a7ad4415a3e02409e9b51723622a9f8c7819"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1446,6 +1465,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "thread-id"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7fbf4c9d56b320106cd64fd024dadfa0be7cb4706725fc44a7d7ce952d820c1"
+dependencies = [
+ "libc",
+ "redox_syscall 0.1.57",
+ "winapi",
 ]
 
 [[package]]

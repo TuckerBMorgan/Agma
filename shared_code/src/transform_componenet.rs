@@ -1,4 +1,5 @@
 use cgmath::*;
+use crate::*;
 
 use serde::{Serialize, Deserialize};
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -11,5 +12,11 @@ impl TransformComponent {
         TransformComponent {
             transform
         }
+    }
+}
+
+impl<'a> Component<'a> for TransformComponent {
+    fn component_type(&self) -> ComponentType {
+        return ComponentType::TransformComponent;
     }
 }

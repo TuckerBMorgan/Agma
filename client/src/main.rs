@@ -2,7 +2,7 @@ use shared_code::*;
 use core::cmp::min;
 use storm::color::RGBA8;
 use storm::*;
-use storm::graphics::{ClearMode, DisplayMode, Vsync, WindowSettings, DepthTest};
+use storm::graphics::{ClearMode, DisplayMode, Vsync,Texture,TextureFiltering, WindowSettings, DepthTest};
 use std::ops::{Mul};
 use storm::math::PerspectiveCamera;
 use storm::cgmath::*;
@@ -16,6 +16,8 @@ use std::thread::sleep;
 use storm::math::Float;
 use bincode::*;
 
+use log::{info, trace, warn};
+use log::LevelFilter;
 mod rendering;
 use rendering::*;
 
@@ -23,11 +25,46 @@ mod networking;
 use networking::*;
 
 
+static TEXTURE_A: &[u8] = include_bytes!("resources/images/floor.png");
+/*
+pub trait Level {    
+    fn files_required_to_load() -> Vec<String>;
+    fn files_loaded(ctx: &mut Context<AgmaClientApp>, app: &mut AgmaClientApp, loaded_assets: Vec<Asset>);
+}
+
+
+pub enum AppState {
+    LandingScreen,
+    SummonersRift
+}
+
+struct SummonersRift {
+
+}
+
+impl Level for SummonersRift {
+    fn files_required_to_load() -> Vec<String> {
+        vec![String::from("resources/images/floor.png")]
+    }
+
+    fn files_loaded(ctx: &mut Context<AgmaClientApp>, app: &mut AgmaClientApp, loaded_assets: Vec<Asset>) {
+
+    }
+}
+*/
+
 pub struct AgmaClientApp {
     encoded_world_states: RingBuffer<(usize, Vec<u8>)>,
-    model_shader: ModelShader,
-    cube: Vec<ModelVertex>,
+    
     particle_buffer: Buffer<ModelVertex>,
+    cube: Vec<ModelVertex>,
+    model_shader: ModelShader,
+
+    floor_buffer: Buffer<TexturedVertex>,    
+    floor: Vec<TexturedVertex>,
+    texture_shader: TextureShader,
+    floor_texture: Texture,
+
     latest_game_state: Option<World>,
     recv_from_server: Receiver<UpdateWorldMessage>,
     send_to_server: Sender<Vec<u8>>,
@@ -87,6 +124,9 @@ impl AgmaClientApp {
     }
 
     fn render_world(&mut self) {
+        self.floor_buffer.set(&self.floor.as_slice());
+        self.texture_shader.draw(&self.camera.model_view_projection_uniform(&Matrix4::from_scale(100.0)), &self.floor_texture, &self.floor_buffer);
+
         if self.latest_game_state.is_some() {
             let game_state = self.latest_game_state.as_ref().unwrap();
             for transform in game_state.transforms.iter() {
@@ -107,6 +147,10 @@ impl App for AgmaClientApp {
             model_shader: ModelShader::new(ctx),
             cube: create_cube().to_vec(),
             particle_buffer: Buffer::new(ctx),
+            floor_buffer: Buffer::new(ctx),    
+            floor: create_plane().to_vec(),
+            texture_shader: TextureShader::new(ctx),
+            floor_texture: Texture::from_png(ctx, TEXTURE_A, TextureFiltering::none()),
             latest_game_state: None,
             recv_from_server,
             send_to_server,
@@ -147,7 +191,7 @@ impl App for AgmaClientApp {
         if self.previous_inputs.len() >= 16 {
             self.previous_inputs.remove(0);
         }
-
+        self.current_input_value = 0;
         self.previous_inputs.push(self.current_input_value);
         let to_server_input_message = InputWindowMessage::new(self.previous_inputs.clone());
 
@@ -236,6 +280,8 @@ impl App for AgmaClientApp {
 }
 
 fn main() {
+    simple_logging::log_to_file("test.log", LevelFilter::Info);
+    info!("Razor located");
     start::<AgmaClientApp>(
         WindowSettings {
             title: String::from("Agma"),
