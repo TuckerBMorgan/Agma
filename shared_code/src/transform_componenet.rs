@@ -2,7 +2,7 @@ use cgmath::*;
 use crate::*;
 
 use serde::{Serialize, Deserialize};
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
 pub struct TransformComponent {
     pub transform: Matrix4<f32>
 }
@@ -13,10 +13,12 @@ impl TransformComponent {
             transform
         }
     }
+
+    pub fn position(&self) -> Vector3<f32> {
+        return Vector3::new(self.transform.w.x, self.transform.w.y, self.transform.w.z);
+    }
+
+
 }
 
-impl<'a> Component<'a> for TransformComponent {
-    fn component_type(&self) -> ComponentType {
-        return ComponentType::TransformComponent;
-    }
-}
+impl_component!(TransformComponent, TransformComponent);

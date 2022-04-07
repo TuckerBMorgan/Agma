@@ -9,6 +9,8 @@ mod transform_componenet;
 mod champion_component;
 mod attribute_component;
 mod component;
+#[macro_use]
+mod macros;
 
 pub use vector_math::*;
 pub use sphere::*;

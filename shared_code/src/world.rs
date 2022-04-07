@@ -1,6 +1,5 @@
 use crate::*;
 use cgmath::*;
-use erased_serde::{Serialize, Serializer};
 use serde::{Serialize, Deserialize};
 use std::ops::Mul;
 
@@ -21,67 +20,72 @@ impl PlayerInput {
     }
 }
 
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
-pub struct World<'a> {
-    pub frame_number: usize,
-    pub entities: SlotMap<DefaultKey, Entity>,
-    pub components: HashMap<ComponentType, SecondaryMap<DefaultKey, Box<dyn Component<'a>>>>,
-    pub input: u8,
-    pub is_moving: bool,
-    pub desired_x: u32,
-    pub desired_y: u32
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WorldMouseState {
+    pub button_down: bool,
+    pub world_pos: Vector3<f32>
 }
 
-impl<'a> World<'a> {
-    pub fn spawn_entity(&mut self) -> EntityId {
-        let entity = Entity{component_mask: 0, id: DefaultKey::default()};
-        let id = self.entities.insert(entity);
-        self.entities[id].id = id;
-        return id;
-    }
-
-    pub fn add_component(&mut self, entity: EntityId, component: Box<dyn Component<'a>>) {
-        if self.entities.contains_key(entity) {
-            if self.components.contains_key(&component.component_type()) == false {
-                self.components.insert(component.component_type(), SecondaryMap::new());
-            }
-
-            let mut component_list = self.components.get_mut(&component.component_type());
-            let actual = component_list.as_mut().unwrap();
-            if actual.contains_key(entity) {
-                panic!("Tried to two of the same component to a entity");
-            }
-            //We do it before as component gets moved when we insert
-            //TODO: move this up a little early so we can use this as our bail condition
-            self.entities[entity].component_mask |= component.component_type() as u64;
-            actual.insert(entity, component);
-        }
-        else {
-            panic!("Tried to add a component to an entity that does not exists");
+impl WorldMouseState {
+    pub fn new(mouse_state: &MouseState) -> WorldMouseState {
+        WorldMouseState {
+            button_down:mouse_state.button_down,
+            world_pos: Vector3::new(mouse_state.x, mouse_state.y, mouse_state.z)
         }
     }
+}
 
-    // This returns those entities that have all of the states Components
-    pub fn entities_with_components(&mut self, component_type: Vec<ComponentType>) -> Vec<EntityId> {
-        let mask = component_type.iter().fold(0, |sum, i| sum | *i as u64);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct World {
+    pub frame_number: usize,
+    pub entities: Vec<Entity>,
+    pub inputs: Vec<u8>,
+    pub click_inputs: Vec<WorldMouseState>
+}
 
-        let mut ids = vec![];
-        for (id, value) in self.entities.iter() {
-            if value.component_mask & mask > 0 {
-                //These are all of the entities that have these compoennts
-                ids.push(id);
-            }
+impl World {
+    pub fn new() -> World {
+        World {
+            frame_number: 0,
+            entities: vec![],
+            inputs: vec![],
+            click_inputs: vec![]
+        }
+    }
+    pub fn movement_system(&mut self) {
+        if self.click_inputs.len() == 0 {
+            return;
         }
 
-        return ids;
+        let mouse_event = self.click_inputs.remove(0);
+        if mouse_event.button_down == false {
+            return;
+        }
+
+        for entity in self.entities.iter_mut() {
+            entity.is_moving = true;
+            entity.desired_position = mouse_event.world_pos;
+        }
+
+        for entity in self.entities.iter_mut() {
+            if entity.is_moving {
+                //Direction we want the character to move in
+                let direction = (entity.position() - entity.desired_position).normalize();
+                entity.move_entity(direction * 0.1f32);
+                println!("{:?}", direction);
+            }
+        }
+    }
+
+    pub fn client_tick(&mut self) {
+        self.movement_system();
     }
 
     pub fn tick(&mut self) {
         self.frame_number += 1;
+        self.movement_system();
     }
 
     pub fn post_tick(&mut self) {
-      //  self.input = 0;
     }
 }

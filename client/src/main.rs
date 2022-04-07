@@ -14,7 +14,6 @@ use std::sync::mpsc::{Sender, Receiver};
 use std::time::Duration;
 use std::thread::sleep;
 use storm::math::Float;
-use bincode::*;
 
 use log::{info, trace, warn};
 use log::LevelFilter;
@@ -26,32 +25,7 @@ use networking::*;
 
 
 static TEXTURE_A: &[u8] = include_bytes!("resources/images/floor.png");
-/*
-pub trait Level {    
-    fn files_required_to_load() -> Vec<String>;
-    fn files_loaded(ctx: &mut Context<AgmaClientApp>, app: &mut AgmaClientApp, loaded_assets: Vec<Asset>);
-}
 
-
-pub enum AppState {
-    LandingScreen,
-    SummonersRift
-}
-
-struct SummonersRift {
-
-}
-
-impl Level for SummonersRift {
-    fn files_required_to_load() -> Vec<String> {
-        vec![String::from("resources/images/floor.png")]
-    }
-
-    fn files_loaded(ctx: &mut Context<AgmaClientApp>, app: &mut AgmaClientApp, loaded_assets: Vec<Asset>) {
-
-    }
-}
-*/
 
 pub struct AgmaClientApp {
     encoded_world_states: RingBuffer<(usize, Vec<u8>)>,
@@ -69,13 +43,14 @@ pub struct AgmaClientApp {
     recv_from_server: Receiver<UpdateWorldMessage>,
     send_to_server: Sender<Vec<u8>>,
     previous_inputs: Vec<u8>,
+    previous_mouse_inputs: Vec<MouseState>,
     current_input_value: u8,
+    current_mouse_input_value: u8,
     camera: Camera
 }
 
 impl AgmaClientApp {
     fn handle_message_update(&mut self, mut message: UpdateWorldMessage) {
-        let config = config::standard();
         match message.message_type {
             ToPlayerMessageType::UpdateWorld => {
                 let mut index = 0;
@@ -90,6 +65,7 @@ impl AgmaClientApp {
                     }
                 }
                 if has_previous_frame == true {
+
                     let (_frame_number, data) = &self.encoded_world_states.storage[index];
                     let loop_counter = min(data.len(), message.data.len());
                     for i in 0..loop_counter {
@@ -97,26 +73,29 @@ impl AgmaClientApp {
                     }
 
                     let awk_frame_message = AwkFrameMessage::new(message.current_frame_number);
-                    let config = config::standard();
-                    let encoded: Vec<u8> = bincode::serde::encode_to_vec(&awk_frame_message, config).unwrap();
+                    let mut encoded: Vec<u8> = serde_json::to_vec(&awk_frame_message).unwrap();
+                    encoded.insert(0, awk_frame_message.message_type.to_u8());
                     let _ = self.send_to_server.send(encoded);
                     self.encoded_world_states.add_new_data((message.current_frame_number, message.data.clone()));
 
-
                     if self.latest_game_state.is_none() || self.latest_game_state.as_ref().unwrap().frame_number < message.current_frame_number {
-                        self.latest_game_state = Some(bincode::serde::decode_from_slice(&message.data, config).unwrap().0);
+
+                        let world : World = serde_json::from_slice(&message.data).unwrap();
+
+                        self.latest_game_state = Some(world);
                     }
                 }
                 else {
                     //If we could not find a frame to build the delta off of, just ignore it
+                    println!("NOTNAKJSDLAKSJDALSKDJ");
                 }
             },
             ToPlayerMessageType::StateWorld => {
-                let (world, _len) : (World, usize) = bincode::serde::decode_from_slice(&message.data[..], config).unwrap();
+                let world : World = serde_json::from_slice(&message.data[..]).unwrap();
                 self.encoded_world_states.add_new_data((message.current_frame_number, message.data));
-                let config = config::standard();
                 let awk_frame_message = AwkFrameMessage::new(message.current_frame_number);
-                let encoded: Vec<u8> = bincode::serde::encode_to_vec(&awk_frame_message, config).unwrap();
+                let mut encoded: Vec<u8> = serde_json::to_vec(&awk_frame_message).unwrap();
+                encoded.insert(0, awk_frame_message.message_type.to_u8());
                 let _ = self.send_to_server.send(encoded);
                 self.latest_game_state = Some(world);
             }
@@ -129,7 +108,7 @@ impl AgmaClientApp {
 
         if self.latest_game_state.is_some() {
             let game_state = self.latest_game_state.as_ref().unwrap();
-            for transform in game_state.transforms.iter() {
+            for transform in game_state.entities.iter() {
                 self.particle_buffer.set(&self.cube.as_slice());
                 self.model_shader.draw(&self.camera.model_view_projection_uniform(&transform.transform), &self.particle_buffer);
             }
@@ -155,7 +134,9 @@ impl App for AgmaClientApp {
             recv_from_server,
             send_to_server,
             previous_inputs: vec![],
+            previous_mouse_inputs: vec![],
             current_input_value: 0,
+            current_mouse_input_value: 0,
             camera: Camera::new(ctx)
         }
     }
@@ -179,24 +160,35 @@ impl App for AgmaClientApp {
 
         match &mut self.latest_game_state {
             Some(world) => {
-                world.input = self.current_input_value;
-                world.tick();
+                world.client_tick();
             },
             None => {
 
             }
         }
 
-        let config = config::standard();
         if self.previous_inputs.len() >= 16 {
             self.previous_inputs.remove(0);
         }
         self.current_input_value = 0;
         self.previous_inputs.push(self.current_input_value);
-        let to_server_input_message = InputWindowMessage::new(self.previous_inputs.clone());
+        let to_server_input_message = KeyboardActionMessage::new(self.previous_inputs.clone());
 
-        let encoded: Vec<u8> = bincode::serde::encode_to_vec(&to_server_input_message, config).unwrap();
+        if self.previous_mouse_inputs.len() >= 16 {
+            self.previous_mouse_inputs.remove(0);
+        }
+        let mut encoded: Vec<u8> = serde_json::to_vec(&to_server_input_message).unwrap();
+        encoded.insert(0, to_server_input_message.message_type.to_u8());
         let _ = self.send_to_server.send(encoded);
+
+        if self.latest_game_state.is_some() {
+            self.previous_mouse_inputs.push(MouseState::new(self.current_mouse_input_value != 0, self.latest_game_state.as_ref().unwrap().entities[0].position() + Vector3::new(1.0, 0.0, 0.0)));
+            let to_server_mouse_input_message = MouseActionMessage::new(self.previous_mouse_inputs.clone());
+            self.latest_game_state.as_mut().unwrap().click_inputs = self.previous_mouse_inputs.iter().map(|x|WorldMouseState::new(x)).collect();
+            let mut encoded: Vec<u8> = serde_json::to_vec(&to_server_mouse_input_message).unwrap();
+            encoded.insert(0, to_server_mouse_input_message.message_type.to_u8());
+            let _ = self.send_to_server.send(encoded);
+        }
 
         self.camera.update(delta);
         self.render_world();
@@ -209,6 +201,46 @@ impl App for AgmaClientApp {
         _focused: bool,
     ) {
         self.camera.look(delta);
+    }
+
+    fn on_cursor_pressed(
+        &mut self,
+        _ctx: &mut Context<Self>,
+        button: event::CursorButton,
+        _physical_pos: cgmath::Vector2<f32>,
+        _normalized_pos: cgmath::Vector2<f32>,
+    ) {
+        match button {
+            CursorButton::Right => {
+                self.current_mouse_input_value |= 1;
+            },
+            CursorButton::Left => {
+                self.current_mouse_input_value |= 2;
+            },
+            _ => {
+
+            }
+        }
+    }
+
+    fn on_cursor_released(
+        &mut self,
+        _ctx: &mut Context<Self>,
+        button: event::CursorButton,
+        _physical_pos: cgmath::Vector2<f32>,
+        _normalized_pos: cgmath::Vector2<f32>,
+    ) {
+        match button {
+            CursorButton::Right => {
+                self.current_mouse_input_value &= !(1);
+            },
+            CursorButton::Left => {
+                self.current_mouse_input_value &= !(2);
+            },
+            _ => {
+
+            }
+        }
     }
 
     fn on_key_pressed(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton, is_repeat: bool) {
@@ -280,7 +312,7 @@ impl App for AgmaClientApp {
 }
 
 fn main() {
-    simple_logging::log_to_file("test.log", LevelFilter::Info);
+    let _ = simple_logging::log_to_file("test.log", LevelFilter::Info);
     info!("Razor located");
     start::<AgmaClientApp>(
         WindowSettings {

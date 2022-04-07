@@ -1,6 +1,6 @@
 // Example IDL file for our monster's schema.
+use cgmath::*;
 use serde::{Serialize, Deserialize};
-
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[repr(u8)]
 pub enum ToPlayerMessageType {
@@ -47,29 +47,29 @@ pub enum PlayerToServerMessage {
 }
 
 impl PlayerToServerMessage {
-    fn to_u8(&self) -> u8 {
+    pub fn to_u8(&self) -> u8 {
         match self {
             PlayerToServerMessage::AwkFrameMessage => {
-                return 1;
+                return 0;
             }
             PlayerToServerMessage::MouseAction => {
-                return 2;                
+                return 1;                
             }
             PlayerToServerMessage::KeyboardAction => {
-                return 3;
+                return 2;
             }
         }
     }
 
-    fn from_u8(value: u8) -> PlayerToServerMessage {
+    pub fn from_u8(value: u8) -> PlayerToServerMessage {
         match value {
-            1 => {
+            0 => {
                 return PlayerToServerMessage::AwkFrameMessage;
             },
-            2 => {
+            1 => {
                 return PlayerToServerMessage::MouseAction;
             }
-            3 => {
+            2 => {
                 return PlayerToServerMessage::KeyboardAction;
             },
             _ => {
@@ -79,20 +79,40 @@ impl PlayerToServerMessage {
     }
 }
 
+
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
+#[repr(C)]
+pub struct MouseState {
+    pub button_down: bool,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32
+}
+
+impl MouseState {
+    pub fn new(mouse_down: bool, world_pos: Vector3<f32>) -> MouseState {
+        MouseState {
+            button_down: mouse_down,
+            x: world_pos.x,
+            y: world_pos.y,
+            z: world_pos.z
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[repr(C)]
-pub struct MouseActionMessage {
+pub struct  MouseActionMessage {
     pub message_type: PlayerToServerMessage,
-    pub destination_x: u32,
-    pub destination_y: u32
+    pub destinations: Vec<MouseState>
 }
 
 impl MouseActionMessage {
-    pub fn new(destination_x: u32, destination_y: u32) -> MouseActionMessage {
+    pub fn new(destinations: Vec<MouseState>) -> MouseActionMessage {
         MouseActionMessage {
             message_type: PlayerToServerMessage::MouseAction,
-            destination_x,
-            destination_y
+            destinations
         }
     }
 }

@@ -1,7 +1,7 @@
 use cgmath::*;
-
+use crate::*;
 use serde::{Serialize, Deserialize};
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct AttributeComponent {
     pub move_speed: f32
 }
@@ -13,3 +13,5 @@ impl AttributeComponent {
         }
     }
 }
+
+impl_component!(AttributeComponent, AttributeComponent);

@@ -3,19 +3,24 @@ pub trait Rune {
     fn execute(mut world: World) -> World;
 }
 
+pub struct RuneSystem {
 
-//TODO: add a "moveType" Ex: ClickMove, Push, Forced
-pub struct Move {
-    entity_id: EntityId,
-    desination: Vector3<f32>
 }
 
-impl Rune for Move {
+impl RuneSystem {
+    //
+}
+
+pub struct FrameRune {}
+
+impl Rune for FrameRune {
     fn execute(mut world: World) -> World {
-        //find the entity
-        //check that they can be moved by the way the Move wants it to
-        //find the place on the map that is cloest to the destination the character can move towards
-        //then set the entities direction, and their desired destination on their "MovementComponent"
-        //A seperate system down the line will actually move the entity
+        world
     }
+}
+
+pub struct MoveRune {
+    entity: DefaultKey,
+    destination_x: f32,
+    destination_y: f32
 }

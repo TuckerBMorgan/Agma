@@ -1,19 +1,19 @@
 use cgmath::*;
-
+use crate::*;
 use serde::{Serialize, Deserialize};
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct ChampionComponent {
     pub is_moving: bool,
-    pub desired_x: f32,
-    pub desired_y: f32
+    pub desired: Vector3<f32>
 }
 
 impl ChampionComponent {
     pub fn new() -> ChampionComponent {
         ChampionComponent {
             is_moving: false,
-            desired_x: 0.0, 
-            desired_y: 0.0
+            desired: Vector3::new(0.0, 0.0, 0.0)
         }
     }
 }
+
+impl_component!(ChampionComponent, ChampionComponent);

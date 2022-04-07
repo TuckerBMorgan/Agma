@@ -1,13 +1,33 @@
-[00:00:00.000] (1a6c) INFO   Razor located
-[00:00:00.000] (1a6c) INFO   Using the provided logger.
-[00:00:00.144] (1a6c) INFO   Created window.
-[00:00:00.144] (1a6c) TRACE  MAX_TEXTURE_SIZE: 32768
-[00:00:00.156] (1a6c) TRACE  Configured vertex client::rendering::model_vertex::ModelVertex: Size 24, Stride: 24
-[00:00:00.156] (1a6c) TRACE  Configured vertex client::rendering::textured_vertex::TexturedVertex: Size 20, Stride: 20
-[00:00:00.163] (1a6c) TRACE  Window resized: Physical(Vector2 [1904.0, 990.0]) Logical(Vector2 [1904.0, 990.0])
-[00:00:00.163] (1a6c) TRACE  Window resized: Physical(Vector2 [1280.0, 1024.0]) Logical(Vector2 [1280.0, 1024.0])
-[00:00:01.168] (1a6c) TRACE  Event::Update   :  144 /    3759 tps |  265972 ns
-[00:00:02.175] (1a6c) TRACE  Event::Update   :  145 /   23106 tps |   43277 ns
-[00:00:03.182] (1a6c) TRACE  Event::Update   :  145 /   18355 tps |   54479 ns
-[00:00:04.182] (1a6c) TRACE  Event::Update   :  144 /   20089 tps |   49778 ns
-[00:00:05.182] (1a6c) TRACE  Event::Update   :  144 /   19955 tps |   50112 ns
+[00:00:00.000] (1970) INFO   Razor located
+[00:00:00.000] (1970) INFO   Using the provided logger.
+[00:00:00.179] (1970) INFO   Created window.
+[00:00:00.179] (1970) TRACE  MAX_TEXTURE_SIZE: 32768
+[00:00:00.193] (1970) TRACE  Configured vertex client::rendering::model_vertex::ModelVertex: Size 24, Stride: 24
+[00:00:00.193] (1970) TRACE  Configured vertex client::rendering::textured_vertex::TexturedVertex: Size 20, Stride: 20
+[00:00:00.202] (1970) TRACE  Window resized: Physical(Vector2 [1904.0, 990.0]) Logical(Vector2 [1904.0, 990.0])
+[00:00:00.202] (1970) TRACE  Window resized: Physical(Vector2 [1280.0, 1024.0]) Logical(Vector2 [1280.0, 1024.0])
+[00:00:01.203] (1970) TRACE  Event::Update   :  143 /    3855 tps |  259378 ns
+[00:00:02.203] (1970) TRACE  Event::Update   :  144 /   19965 tps |   50087 ns
+[00:00:03.210] (1970) TRACE  Event::Update   :  145 /    5418 tps |  184548 ns
+[00:00:04.217] (1970) TRACE  Event::Update   :  145 /   13722 tps |   72871 ns
+[00:00:05.224] (1970) TRACE  Event::Update   :  145 /   15478 tps |   64604 ns
+[00:00:06.231] (1970) TRACE  Event::Update   :  145 /   20710 tps |   48285 ns
+[00:00:07.231] (1970) TRACE  Event::Update   :  144 /   16990 tps |   58856 ns
+[00:00:08.237] (1970) TRACE  Event::Update   :  145 /   14021 tps |   71319 ns
+[00:00:09.237] (1970) TRACE  Event::Update   :  144 /   17488 tps |   57181 ns
+[00:00:10.238] (1970) TRACE  Event::Update   :  144 /    8432 tps |  118592 ns
+[00:00:11.245] (1970) TRACE  Event::Update   :  145 /    3418 tps |  292558 ns
+[00:00:12.248] (1970) TRACE  Event::Update   :  143 /    3686 tps |  271283 ns
+[00:00:13.248] (1970) TRACE  Event::Update   :  144 /    3632 tps |  275308 ns
+[00:00:14.249] (1970) TRACE  Event::Update   :  144 /    3541 tps |  282349 ns
+[00:00:15.255] (1970) TRACE  Event::Update   :  145 /    3232 tps |  309366 ns
+[00:00:16.262] (1970) TRACE  Event::Update   :  145 /    3192 tps |  313223 ns
+[00:00:17.270] (1970) TRACE  Event::Update   :  145 /    3974 tps |  251630 ns
+[00:00:18.276] (1970) TRACE  Event::Update   :  145 /    3655 tps |  273597 ns
+[00:00:19.276] (1970) TRACE  Event::Update   :  144 /    3646 tps |  274238 ns
+[00:00:20.283] (1970) TRACE  Event::Update   :  145 /    3571 tps |  280003 ns
+[00:00:21.290] (1970) TRACE  Event::Update   :  145 /    7511 tps |  133131 ns
+[00:00:22.296] (1970) TRACE  Event::Update   :  145 /    5552 tps |  180110 ns
+[00:00:23.297] (1970) TRACE  Event::Update   :  144 /    6199 tps |  161313 ns
+[00:00:24.304] (1970) TRACE  Event::Update   :  145 /   11589 tps |   86286 ns
+[00:00:25.310] (1970) TRACE  Event::Update   :  145 /   12772 tps |   78291 ns
