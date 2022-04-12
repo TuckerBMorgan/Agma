@@ -1,4 +1,3 @@
-use cgmath::*;
 const RING_BUFFER_INTERNAL_STORAGE_SLOTS : usize = 32;
 
 pub struct RingBuffer<T> {
@@ -24,14 +23,3 @@ impl<T> RingBuffer<T> {
         self.next_open_slot += 1;
     }
 }
-/*
-trait Length {
-    fn length(&self) -> f32;
-}
-
-impl Length for Vector3<f32>  {
-    fn length(&self) -> f32 {
-        return (self.x * self.x + self.y * self.y + self.z * self.z);
-    }
-}
-*/

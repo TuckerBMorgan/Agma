@@ -1,15 +1,20 @@
 use serde::{Serialize, Deserialize};
-use slotmap::{SlotMap, SecondaryMap, DefaultKey};
 use cgmath::*;
-pub type EntityId = DefaultKey;
 use std::ops::Mul;
+use crate::*;
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub enum EntityState {
+    Idle,
+    Moving(Vector3<f32>)
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Entity {
     pub component_mask: u64,
-    pub id: EntityId,
+    pub entity_state: EntityState,
     pub transform: Matrix4<f32>,
-    pub desired_position: Vector3<f32>,
-    pub is_moving: bool
+    pub move_speed: f32
 }
 
 impl Entity {
@@ -17,10 +22,9 @@ impl Entity {
     pub fn new() -> Entity {
         Entity {
             component_mask: 0,
-            id: DefaultKey::default(),
+            entity_state: EntityState::Idle,
             transform: Matrix4::from_translation(Vector3::new(0.0, 0.0, 0.0)),
-            desired_position: Vector3::new(0.0, 0.0, 0.0),
-            is_moving: false
+            move_speed: 0.1
         }
     }
 

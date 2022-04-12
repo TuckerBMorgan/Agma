@@ -5,6 +5,10 @@ use std::thread::sleep;
 use cgmath::*;
 use bitfield_rle::*;
 
+
+use log::{info, trace, warn};
+use log::LevelFilter;
+
 pub fn produce_state_difference(old_state: &Vec<u8>, new_state: &Vec<u8>) -> Vec<u8> {
     let iter = old_state.iter().zip(new_state.iter());
     let mut result = Vec::with_capacity(new_state.len());
@@ -66,7 +70,6 @@ impl PlayerConnection {
                 to_player_message.message_type = ToPlayerMessageType::UpdateWorld;
                 let encoded: Vec<u8> = serde_json::to_vec(&to_player_message).unwrap();
                 let encoded = bitfield_rle::encode(encoded);
-                println!("{:?}", encoded.len());
                 let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
                 self.previous_game_state.add_new_data((frame_number, buffer));
             }
@@ -74,7 +77,6 @@ impl PlayerConnection {
                 let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
                 let encoded: Vec<u8> = serde_json::to_vec(&to_player_message).unwrap();
                 let encoded = bitfield_rle::encode(encoded);
-                println!("{:?}", encoded.len());
                 let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
                 self.previous_game_state.add_new_data((frame_number, buffer));   
             }
@@ -83,7 +85,6 @@ impl PlayerConnection {
             let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
             let encoded: Vec<u8> = serde_json::to_vec(&to_player_message).unwrap();
             let encoded = bitfield_rle::encode(encoded);
-            println!("{:?}", encoded.len());
             let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
             self.previous_game_state.add_new_data((frame_number, buffer));
         }
@@ -133,12 +134,17 @@ impl PlayerConnection {
 }
 
 fn main() {
+    let _ = simple_logging::log_to_file("server.log", LevelFilter::Info);
+
     let mut player_connection = PlayerConnection::new();
     let mut w = World::new();
+    let mut rune_system = RuneSystem::new();
+ 
     for i in 0..1 {
         let entity_id = Entity::new();
         w.entities.push(entity_id);
     }
+    
     loop {
         player_connection.check_on_player();
         if player_connection.inputs.len() > 0 {
@@ -147,10 +153,14 @@ fn main() {
         if player_connection.desired_inputs.len() > 0 {
             w.click_inputs = player_connection.desired_inputs.iter().map(|x|WorldMouseState::new(x)).collect();
         }
+
         w.tick();
+        rune_system.add_runes(w.movement_system(1.0));
+        rune_system.execute_current_stack(&mut w);
+
         let encoded: Vec<u8> = serde_json::to_vec(&w).unwrap();
         player_connection.update_player_with_new_game_state(encoded, w.frame_number);        
         w.post_tick();
-        sleep(Duration::from_millis(16));
+        sleep(Duration::from_millis(14));
     }
 }

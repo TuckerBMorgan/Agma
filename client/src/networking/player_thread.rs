@@ -5,25 +5,38 @@ use std::time::Duration;
 use std::thread::sleep;
 use std::thread;
 use std::net::UdpSocket;
-use bitfield_rle::*;
 
 pub fn start_player_thread(server_address: String) -> (Receiver<UpdateWorldMessage>, Sender<Vec<u8>>) {
     let (send_to_client, recv_from_server) : (Sender<UpdateWorldMessage>, Receiver<UpdateWorldMessage>) = channel();
     let (send_to_server, recv_from_client) : (Sender<Vec<u8>>, Receiver<Vec<u8>>) = channel();
     thread::spawn(move||{
         let socket =  UdpSocket::bind(server_address).unwrap();
+        //We want to have this be non blocking, so we can alternate between
+        //looking for messages from the client to sent up
+        //and looking for message down from the server
+        let _ = socket.set_nonblocking(true);
         let mut buf = [0; 65507];
         loop {
-            //TODO: drain this of all updates from the server
-            let (amt, _src) = socket.recv_from(&mut buf).unwrap();
-            if amt == 0 {
-                return;
+            loop {
+                //Loop so we drain the messages from the server, making sure we have the most up to date
+                //world states we can
+                match socket.recv_from(&mut buf) {
+                    Ok((amt, _src)) => {
+                        if amt == 0 {
+                            break;
+                        }
+                        let buf = &mut buf[..amt];
+                        let decode = bitfield_rle::decode(&buf[..]).unwrap();
+                        let foo: UpdateWorldMessage = serde_json::from_slice(&decode).unwrap();
+            
+                        let _ = send_to_client.send(foo);
+        
+                    },
+                    Err(_) => {
+                        break;
+                    }                 
+                }    
             }
-            let buf = &mut buf[..amt];
-            let decode = bitfield_rle::decode(&buf[..]).unwrap();
-            let foo: UpdateWorldMessage = serde_json::from_slice(&decode).unwrap();
-
-            let _ = send_to_client.send(foo);
             let to_server = recv_from_client.try_iter();
 
             for message in to_server {

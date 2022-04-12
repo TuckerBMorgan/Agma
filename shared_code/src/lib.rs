@@ -11,6 +11,7 @@ mod attribute_component;
 mod component;
 #[macro_use]
 mod macros;
+mod runes;
 
 pub use vector_math::*;
 pub use sphere::*;
@@ -22,3 +23,4 @@ pub use transform_componenet::*;
 pub use champion_component::*;
 pub use attribute_component::*;
 pub use component::*;
+pub use runes::*;

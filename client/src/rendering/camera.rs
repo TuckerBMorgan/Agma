@@ -2,25 +2,26 @@ use storm::*;
 use storm::math::PerspectiveCamera;
 use storm::cgmath::*;
 use storm::event::*;
-use storm::graphics::{Buffer, Uniform};
+use storm::graphics::{Uniform};
 use std::ops::{Mul};
 use storm::math::Float;
-use crate::ModelUniform;
-use crate::*;
+use crate::rendering::*;
+use crate::AgmaClientApp;
+use log::*;
 
 pub struct Camera {
     /// Transform matix.
-    transform: PerspectiveCamera,
+    pub transform: PerspectiveCamera,
     /// Transform uniform.
-    uniform: Uniform<ModelUniform>,
+    pub uniform: Uniform<ModelUniform>,
     /// Position vector.
-    pos: Vector3<f32>,
+    pub pos: Vector3<f32>,
     /// Unnormalized direction vector.
-    dir: Vector3<f32>,
+    pub dir: Vector3<f32>,
     /// Normalized horizontal xz plane direction vector.
-    forward: Vector2<f32>,
-    yaw: f32,
-    pitch: f32,
+    pub forward: Vector2<f32>,
+    pub yaw: f32,
+    pub pitch: f32,
     /// Positive is forward.
     pub forward_speed: f32,
     /// Positive is right.
@@ -37,7 +38,7 @@ impl Camera {
         Camera {
             transform,
             uniform,
-            pos: Vector3::new(0.0, 0.0, 0.0),
+            pos: Vector3::new(0.0, 10.0, 10.0),
             dir: Vector3::zero(),
             forward: Vector2::zero(),
             yaw: 0.0,
@@ -45,7 +46,7 @@ impl Camera {
             forward_speed: 0.0,
             strafe_speed: 0.0,
             vertical_speed: 0.0,
-            multiplier: 20.0,
+            multiplier: 2.0,
         }
     }
 
@@ -81,6 +82,14 @@ impl Camera {
         self.uniform.set(&mut self.transform);
     }
 
+    /*
+    pub fn look_at(& mut self, point: Vector3<f32>) {
+        self.dir = point - self.pos;
+        self.transform.set().direction = self.dir;
+        self.uniform.set(&mut self.transform);
+    }
+    */
+
     pub fn update(&mut self, time_delta: f32) {
         let forward_speed = time_delta * self.forward_speed * self.multiplier;
         let strafe_speed = time_delta * self.strafe_speed * self.multiplier;
@@ -90,10 +99,6 @@ impl Camera {
         self.pos.y += vertical_speed;
         self.transform.set().eye = self.pos;
         self.uniform.set(&mut self.transform);
-    }
-
-    pub fn uniform(&self) -> &Uniform<ModelUniform> {
-        &self.uniform
     }
 
     pub fn model_view_projection_uniform(&mut self, model_transform: &Matrix4<f32>) -> &Uniform<ModelUniform> { 

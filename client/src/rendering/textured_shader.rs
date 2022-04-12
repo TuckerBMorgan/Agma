@@ -1,12 +1,11 @@
 use crate::{
-    graphics::{
-        std140, Buffer, DrawMode, Shader, ShaderDescriptor, Texture, Uniform,
+    graphics::{Buffer, DrawMode, Shader, ShaderDescriptor, Texture, Uniform,
     },
     App, Context,
 };
 
-use crate::ModelUniform;
-use crate::TexturedVertex;
+use crate::rendering::*;
+
 
 impl ShaderDescriptor<1> for TextureShader {
     const VERTEX_SHADER: &'static str = include_str!("textured_vertex.glsl");

@@ -1,11 +1,6 @@
 use crate::*;
 use cgmath::*;
 use serde::{Serialize, Deserialize};
-use std::ops::Mul;
-
-
-use slotmap::{SlotMap, SecondaryMap, DefaultKey};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Default)]
 pub struct PlayerInput {
@@ -52,40 +47,43 @@ impl World {
             click_inputs: vec![]
         }
     }
-    pub fn movement_system(&mut self) {
-        if self.click_inputs.len() == 0 {
-            return;
-        }
 
-        let mouse_event = self.click_inputs.remove(0);
-        if mouse_event.button_down == false {
-            return;
-        }
-
-        for entity in self.entities.iter_mut() {
-            entity.is_moving = true;
-            entity.desired_position = mouse_event.world_pos;
-        }
-
-        for entity in self.entities.iter_mut() {
-            if entity.is_moving {
-                //Direction we want the character to move in
-                let direction = (entity.position() - entity.desired_position).normalize();
-                entity.move_entity(direction * 0.1f32);
-                println!("{:?}", direction);
+    pub fn movement_system(&mut self, delta_time: f32) -> Vec<MoveRune> {
+        if self.click_inputs.len() != 0 {
+            let mouse_event = self.click_inputs.remove(0);
+            if mouse_event.button_down == true {
+                for entity in self.entities.iter_mut() {
+                    entity.entity_state = EntityState::Moving(mouse_event.world_pos);
+                }
             }
         }
+        let mut return_runes = vec![];
+        for entity in self.entities.iter() {
+            match entity.entity_state {
+                EntityState::Moving(desired_position) => {
+                    let direction = (desired_position - entity.position()).normalize();
+                    let move_rune = MoveRune::new(0, direction * entity.move_speed);
+                    return_runes.push(move_rune);
+                },
+                EntityState::Idle => {
+
+                }
+            }
+        }
+
+        return return_runes;
     }
 
-    pub fn client_tick(&mut self) {
-        self.movement_system();
+    pub fn client_tick(&mut self, delta_time: f32) {
+       // self.movement_system(delta_time);
     }
 
+    //TODO: tick, this might be it's own system, and remove this
     pub fn tick(&mut self) {
         self.frame_number += 1;
-        self.movement_system();
     }
 
     pub fn post_tick(&mut self) {
+        
     }
 }
