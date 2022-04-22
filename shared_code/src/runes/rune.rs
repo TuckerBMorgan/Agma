@@ -1,31 +1,55 @@
 use cgmath::*;
-use crate::*;
-use log::{info};
+use std::collections::HashMap;
 
-pub enum RuneType {
+/// A wrapping structure for all runes
+/// essentially a tagged structure allowing
+/// runes heap allocated and stored in generic structures
+/// but then turned into concrete types in a safe manner
+/// Careful: sizeof(AnInstance) is equal to the largest 
+/// single member of the enum
+/// so if we have Rune::(usize)
+/// and Rune::(usize, size)
+/// Rune::(usize) will still be of size (usize, usize)
+pub enum Rune {
     MoveRune(Box<MoveRune>)
 }
 
+impl Rune {
+    /// Will return a usize for each of the
+    /// allowing them to be ordered when needed
+    pub fn value(&self) -> usize {
+        match self {
+            Rune::MoveRune(_) => {
+                return 0;
+            }
+        }
+    }
+}
+
+/// The event system for the ECS
+/// it will collect runes until it is drained
 pub struct RuneSystem {
     //This will need to change
-    current_runes: Vec<MoveRune>
+    current_runes: HashMap<usize, Vec<Rune>>,
+
 }
 
 impl RuneSystem {
     pub fn new() -> RuneSystem {
         RuneSystem {
-            current_runes: vec![]
+            current_runes: HashMap::new()
         }
     }
 
-    pub fn add_runes(&mut self, runes: Vec<MoveRune>) { 
-        self.current_runes.extend(runes);
-    }
-
-    pub fn execute_current_stack(&mut self, world: &mut World) {
-        for rune in self.current_runes.drain(..) {
-            rune.execute(world);
+    /// pushes a rune into the back of the rune stack
+    /// for that type of rune
+    /// # Arguments
+    /// * 'rune' - The rune that will be added
+    pub fn add_rune(&mut self, rune: Rune) {
+        if self.current_runes.contains_key(&rune.value()) == false{
+            self.current_runes.insert(rune.value(), vec![]);
         }
+        self.current_runes.get_mut(&rune.value()).unwrap().push(rune);
     }
 }
 
@@ -40,22 +64,6 @@ impl MoveRune {
         MoveRune {
             entity,
             desired_amount
-        }
-    }
-
-    fn execute(&self, world: &mut World)  {
-
-        match world.entities[self.entity].entity_state {
-            EntityState::Moving(desired_position) => {
-                world.entities[self.entity].move_entity(self.desired_amount);
-                let distance = (desired_position - world.entities[self.entity].position()).magnitude().abs();
-                if distance < 0.1 {
-                    world.entities[self.entity].entity_state = EntityState::Idle;
-                }
-            },
-            EntityState::Idle => {
-
-            }
         }
     }
 }

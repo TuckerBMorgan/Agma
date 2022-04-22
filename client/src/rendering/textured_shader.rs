@@ -1,4 +1,4 @@
-use crate::{
+use storm::{
     graphics::{Buffer, DrawMode, Shader, ShaderDescriptor, Texture, Uniform,
     },
     App, Context,

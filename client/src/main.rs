@@ -2,9 +2,9 @@ use shared_code::*;
 use core::cmp::min;
 use storm::color::RGBA8;
 use storm::graphics::{ClearMode, DisplayMode, Vsync,Texture,TextureFiltering, WindowSettings, DepthTest};
-use storm::cgmath::*;
 
-use storm::{color::*, event::*, graphics::*, math::*, *};
+
+use storm::{color::*, event::*, graphics::*, math::*, Context, App, start, event, cgmath::*};
 use storm::graphics::{Buffer};
 
 use std::time::Duration;
@@ -45,8 +45,8 @@ impl App for AgmaClientApp {
         &mut self,
         ctx: &mut Context<Self>,
         button: event::CursorButton,
-        physical_pos: cgmath::Vector2<f32>,
-        normalized_pos: cgmath::Vector2<f32>,
+        physical_pos: storm::cgmath::Vector2<f32>,
+        normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
 
         self.rift.on_cursor_pressed(ctx, button, physical_pos, normalized_pos);
@@ -56,13 +56,13 @@ impl App for AgmaClientApp {
         &mut self,
         ctx: &mut Context<Self>,
         button: event::CursorButton,
-        physical_pos: cgmath::Vector2<f32>,
-        normalized_pos: cgmath::Vector2<f32>,
+        physical_pos: storm::cgmath::Vector2<f32>,
+        normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
         self.rift.on_cursor_released(ctx, button, physical_pos, normalized_pos);
     }
 
-    fn on_cursor_delta(&mut self, ctx: &mut Context<AgmaClientApp>, delta: cgmath::Vector2<f32>, focused: bool) {
+    fn on_cursor_delta(&mut self, ctx: &mut Context<AgmaClientApp>, delta: storm::cgmath::Vector2<f32>, focused: bool) {
         self.rift.on_cursor_delta(ctx, delta, focused);
     }
 

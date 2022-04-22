@@ -1,7 +1,7 @@
 // Example IDL file for our monster's schema.
 use cgmath::*;
-use serde::{Serialize, Deserialize};
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+use bincode::{Decode, Encode};
+#[derive(Encode, Decode, PartialEq, Debug)]
 #[repr(u8)]
 pub enum ToPlayerMessageType {
     UpdateWorld,
@@ -19,13 +19,20 @@ impl ToPlayerMessageType {
 }
 */
  
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+/// This is used to update the client on the state of the 
+/// world, either partially or entirely
+#[derive(Encode, Decode, PartialEq, Debug)]
 pub struct UpdateWorldMessage {
+    /// The kind of message, DeltaUpdate, WholeUpdate
     pub message_type: ToPlayerMessageType,
+    /// What server frame this will decode into to
     pub current_frame_number: usize,
+    /// What server frame that the player has awked
+    /// that we would need to use to build a full state
     pub delta_frame_number: usize,
+    /// the actual data that we will diff with
     pub data: Vec<u8>
-  }
+}
 
 impl UpdateWorldMessage {
     pub fn new(current_frame_number: usize, delta_frame_number: usize, data: Vec<u8>) -> UpdateWorldMessage {
@@ -38,7 +45,9 @@ impl UpdateWorldMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+/// An enum used to tag a message from the player 
+/// to the server what kind it is
+#[derive(Encode, Decode, PartialEq, Debug)]
 #[repr(u8)]
 pub enum PlayerToServerMessage {
     KeyboardAction,
@@ -80,8 +89,8 @@ impl PlayerToServerMessage {
 }
 
 
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
+/// The snapshot of the mouse state for a frame
+#[derive(Encode, Decode, PartialEq, Debug, Clone, Copy, Default)]
 #[repr(C)]
 pub struct MouseState {
     pub button_down: bool,
@@ -101,7 +110,10 @@ impl MouseState {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+/// A collection of mouse snapshots, what is actually sent to the server
+/// it is a sliding window, so if a message is lost the server
+/// can recover it from the next message
+#[derive(Encode, Decode, PartialEq, Debug)]
 #[repr(C)]
 pub struct  MouseActionMessage {
     pub message_type: PlayerToServerMessage,
@@ -117,7 +129,9 @@ impl MouseActionMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+/// A message use to the tell the player the state of the keyboard is on
+/// a collection of frames
+#[derive(Encode, Decode, PartialEq, Debug)]
 #[repr(C)]
 pub struct KeyboardActionMessage {
     pub message_type: PlayerToServerMessage,
@@ -133,7 +147,10 @@ impl KeyboardActionMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+
+/// A message used to the tell the server that a frame got to the
+/// client so it can be used to build diffs later on
+#[derive(Encode, Decode, PartialEq, Debug)]
 #[repr(C)]
 pub struct AwkFrameMessage {
     pub message_type: PlayerToServerMessage,

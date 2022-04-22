@@ -1,166 +1,165 @@
 use shared_code::*;
-use std::net::{ UdpSocket};
 use std::time::Duration;
 use std::thread::sleep;
 use cgmath::*;
-use bitfield_rle::*;
+use bincode::*;
 
-
-use log::{info, trace, warn};
+use log::info;
 use log::LevelFilter;
-
-pub fn produce_state_difference(old_state: &Vec<u8>, new_state: &Vec<u8>) -> Vec<u8> {
-    let iter = old_state.iter().zip(new_state.iter());
-    let mut result = Vec::with_capacity(new_state.len());
-    for (a, b) in iter {
-        result.push(a ^ b);
-    }
-    //If we have some extra information to add, add it to the send vector
-    if result.len() < new_state.len() {
-        let dif = new_state.len() - result.len();
-        let result_first_len = result.len();
-        //We will keep this as we need it as the offset into result
-
-        for i in 0..dif {
-            let index = result_first_len + i;
-            result.push(new_state[index]);
-        }
-    }
-    return result;
-}
-
-
-pub struct PlayerConnection {
-    pub previous_game_state: RingBuffer<(usize, Vec<u8>)>,
-    pub last_awked_game_state: usize,
-    pub udp_socket: UdpSocket,
-    pub inputs: Vec<u8>,
-    pub desired_inputs: Vec<MouseState>
-}
-
-impl PlayerConnection {
-    pub fn new() -> PlayerConnection {
-        let udp_socket = UdpSocket::bind("127.0.0.1:34257").unwrap();
-        let _ = udp_socket.set_nonblocking(true);
-        PlayerConnection {
-            previous_game_state: RingBuffer::new(),
-            last_awked_game_state: 0,
-            udp_socket,
-            inputs: vec![],
-            desired_inputs: vec![]
-        }
-    }
-
-    pub fn update_player_with_new_game_state(&mut self, buffer: Vec<u8>, frame_number: usize) {
-
-        if self.previous_game_state.next_open_slot != 0 && self.last_awked_game_state != 0 {
-            let mut index = 0;
-            let mut has_previous_frame = false;
-            for (i, state) in self.previous_game_state.storage.iter().enumerate() {
-                if state.0 == self.last_awked_game_state as usize {
-                    //generate a new
-                    index = i;
-                    has_previous_frame = true;
-                    break;
-                }
-            }
-            if has_previous_frame {
-                let last_state = &self.previous_game_state.storage[index];
-                let mut to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, produce_state_difference(&last_state.1, &buffer));
-                to_player_message.message_type = ToPlayerMessageType::UpdateWorld;
-                let encoded: Vec<u8> = serde_json::to_vec(&to_player_message).unwrap();
-                let encoded = bitfield_rle::encode(encoded);
-                let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
-                self.previous_game_state.add_new_data((frame_number, buffer));
-            }
-            else {
-                let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
-                let encoded: Vec<u8> = serde_json::to_vec(&to_player_message).unwrap();
-                let encoded = bitfield_rle::encode(encoded);
-                let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
-                self.previous_game_state.add_new_data((frame_number, buffer));   
-            }
-        }
-        else {
-            let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
-            let encoded: Vec<u8> = serde_json::to_vec(&to_player_message).unwrap();
-            let encoded = bitfield_rle::encode(encoded);
-            let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
-            self.previous_game_state.add_new_data((frame_number, buffer));
-        }
-    }
-
-    pub fn check_on_player(&mut self) {
-        let mut buf = [0; 65507];
-        loop {
-            //We want to drain the input buffer for each player
-            match self.udp_socket.recv_from(&mut buf) {
-                Ok((amt, _src)) => {
-                    if amt == 0 {
-                        return;
-                    }
-
-                    let buf = &mut buf[..amt];
-                    let buf = bitfield_rle::decode(&buf[..]).unwrap();
-                    let message_type = PlayerToServerMessage::from_u8(buf[0]);
-                    match message_type {
-                        PlayerToServerMessage::AwkFrameMessage => {
-                            let msg : AwkFrameMessage = serde_json::from_slice(&buf[1..]).unwrap();
-                            if msg.frame_number > self.last_awked_game_state {
-                                self.last_awked_game_state = msg.frame_number;
-                            }
-                        },
-                        PlayerToServerMessage::KeyboardAction => {
-                            let msg : KeyboardActionMessage = serde_json::from_slice(&buf[1..]).unwrap();
-                            if msg.input_messages.len() <= 16 {
-                                self.inputs = msg.input_messages;
-                            }
-                        },
-                        PlayerToServerMessage::MouseAction => {
-                            let msg : MouseActionMessage = serde_json::from_slice(&buf[1..]).unwrap();
-                            if msg.destinations.len() <= 16 {
-                                self.desired_inputs = msg.destinations;
-                            }
-                        }
-                        _ => {
-
-                        }
-                    }
-                }
-                Err(_e) => {return;/*println!("failed {:?}", e)*/}
-            }
-        }
-    }
-}
+mod components;
+pub use components::*;
 
 fn main() {
     let _ = simple_logging::log_to_file("server.log", LevelFilter::Info);
+    let mut connections = vec![PlayerConnection::new(String::from("192.0.0.1"))];
 
-    let mut player_connection = PlayerConnection::new();
     let mut w = World::new();
-    let mut rune_system = RuneSystem::new();
- 
+    w.register_type::<TransformComponent>(true);
+    w.register_type::<ChampionComponent>(true);
+    w.register_type::<CharacterStateComponent>(true);
+    w.register_type::<MinionComponent>(true);
+    w.register_type::<PlayerConnectionComponent>(false);
+//    let mut rune_system = RuneSystem::new();
+
     for i in 0..1 {
-        let entity_id = Entity::new();
-        w.entities.push(entity_id);
+        let entity = w.new_entity();
+        w.add_component_to_entity(entity, TransformComponent::new(Matrix4::from_translation(Vector3::new(1.0f32, 0.0, 0.0))));
+        w.add_component_to_entity(entity, CharacterStateComponent::new());
+        w.add_component_to_entity(entity, ChampionComponent::new());
+        w.add_component_to_entity(entity, PlayerConnectionComponent::new(i));
     }
     
+    for _i in 0..2 {
+        let entity = w.new_entity();
+        w.add_component_to_entity(entity, TransformComponent::new(Matrix4::from_translation(Vector3::new(0.0f32, 0.0, 0.0))));
+        w.add_component_to_entity(entity, CharacterStateComponent::new());
+        w.add_component_to_entity(entity, MinionComponent::new());
+    }
+    
+    
     loop {
-        player_connection.check_on_player();
-        if player_connection.inputs.len() > 0 {
-            w.inputs = player_connection.inputs.clone();
-        }
-        if player_connection.desired_inputs.len() > 0 {
-            w.click_inputs = player_connection.desired_inputs.iter().map(|x|WorldMouseState::new(x)).collect();
+
+        {
+            //Player Connection Input System
+            for connection in connections.iter_mut() {
+                connection.check_on_player();
+            }
+
+            let mut player_connection_components = w.borrow_component_vec::<PlayerConnectionComponent>().unwrap();
+            let mut champion_component = w.borrow_component_vec::<ChampionComponent>().unwrap();
+            let zip = player_connection_components.iter_mut().zip(champion_component.iter_mut());
+            let player_connection_components = zip.filter_map(|(pcc, cc)|Some((pcc.as_mut()?, cc.as_mut()?)));
+            for (pcc, cc) in player_connection_components {
+                let player_connection = &connections[pcc.player_index];
+                if player_connection.desired_inputs.len() >= 16 {
+                    for i in 0..16 {
+                        cc.desired_inputs[i] = player_connection.desired_inputs[i];
+                    }
+                    cc.current_input_to_use = 0;
+                }
+            }
         }
 
-        w.tick();
-        rune_system.add_runes(w.movement_system(1.0));
-        rune_system.execute_current_stack(&mut w);
 
-        let encoded: Vec<u8> = serde_json::to_vec(&w).unwrap();
-        player_connection.update_player_with_new_game_state(encoded, w.frame_number);        
-        w.post_tick();
+        {
+            //Player Movement System
+            let mut champion_component = w.borrow_component_vec::<ChampionComponent>().unwrap();
+            let mut character_state_component = w.borrow_component_vec::<CharacterStateComponent>().unwrap();
+            let mut transform_component = w.borrow_component_vec::<TransformComponent>().unwrap();
+
+            let zip = champion_component.iter_mut().zip(character_state_component.iter_mut()).zip(transform_component.iter_mut());
+
+            let move_champions_iter = zip.filter_map(|((pcc, cc), tc)|Some((pcc.as_mut()?, cc.as_mut()?, tc.as_mut()?)));
+
+            for (cc, mc, tc) in move_champions_iter {
+                let current_player_input = cc.get_current_input();
+                match current_player_input {
+                    Some(mouse_input) => {
+                        if mouse_input.button_down {
+                            mc.character_state = CharacterState::Moving(Vector3::new(mouse_input.x, mouse_input.y, mouse_input.z));
+                        }
+                    },
+                    None => {
+
+                    }
+                }
+                match mc.character_state {
+                    CharacterState::Moving(location) => {
+                        let direction = (location - tc.position()).normalize();
+                        tc.move_character(direction * 1.0 * 0.1);
+                    },
+                    _ => {
+
+                    }
+                }
+            }
+        }
+
+
+        {
+            // Minion movement system
+            let mut minion_components = w.borrow_component_vec::<MinionComponent>().unwrap();
+            let mut character_state_components = w.borrow_component_vec::<CharacterStateComponent>().unwrap();
+            let mut transform_components = w.borrow_component_vec::<TransformComponent>().unwrap();
+
+            let zip = minion_components.iter_mut().zip(character_state_components.iter_mut()).zip(transform_components.iter_mut());
+
+            let move_champions_iter = zip.filter_map(|((pcc, cc), tc)|Some((pcc.as_mut()?, cc.as_mut()?, tc.as_mut()?)));
+
+            for (minion_component, _mc, tc) in move_champions_iter {
+                let distance_to_current_position = (tc.position() - minion_component.destinations[minion_component.current_index]).magnitude();
+                if distance_to_current_position < 0.01 {
+                    minion_component.current_index = (minion_component.current_index + 1) % 2;
+                }
+                let direction = (tc.position() - minion_component.destinations[minion_component.current_index]).normalize();
+                tc.move_character(direction * 1.0  * 0.01);
+            }
+        }
+
+        /*
+        {
+            // Auto attack system
+            let mut autoattacks = w.borrow_component_vec::<AutoAttackComponent>().unwrap();
+            //I want a function for "find every close entity"
+            //maybe? hmmm, have the character state component add an auto attack component
+            //which in turn will handle all of the stuff
+            //which I guess is fine
+            //the character does not quite care
+            //would care that it is over for sure though
+            //which I guess can be done by having the 
+            //o I like that
+            //becuase then if the character becomes stunned
+            //or preforms an interupt action
+            //the system can remove the component
+            let autoattacks = autoattacks.iter_mut().filter_map(|aac|aac.as_mut()?);
+            for aa in autoattacks {
+                match aa.state {
+                    AutoAttackState::Windup || AutoAttackState::Firing => {
+                        aa.current_progress += aa.attack_speed;
+                        if aa.current_progress / aa.length_of_auto_attack >= 0.33 {
+                            aa.state = AutoAttackState::Firing;
+                        }
+                        else if aa.current_progress >= aa.length_of_auto_attack {
+                            aa.current_progress = aa.length_of_auto_attack;
+                            // "Do damage"
+                            // "Remove this"??
+                        }
+                    },
+                    _ => {
+
+                    }
+                }
+            }
+            
+            
+        }
+        */
+        
+
+        
+        for connection in connections.iter_mut() {
+            connection.update_player_with_new_game_state(w.to_byte_array(), w.frame_number);
+        }
         sleep(Duration::from_millis(14));
     }
 }

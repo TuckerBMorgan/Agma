@@ -2,6 +2,8 @@ use crate::*;
 use std::sync::mpsc::{Sender, Receiver};
 use crate::networking::*;
 use crate::rendering::*;
+use bincode::{config, Decode, Encode};
+use storm::cgmath::*;
 
 pub struct Rift {
     encoded_world_states: RingBuffer<(usize, Vec<u8>)>,
@@ -38,6 +40,7 @@ impl Rift {
     }
 
     pub fn handle_message_update(&mut self, mut message: UpdateWorldMessage) {
+        let config = config::standard();
         match message.message_type {
             ToPlayerMessageType::UpdateWorld => {
                 let mut index = 0;
@@ -60,15 +63,15 @@ impl Rift {
                     }
 
                     let awk_frame_message = AwkFrameMessage::new(message.current_frame_number);
-                    let mut encoded: Vec<u8> = serde_json::to_vec(&awk_frame_message).unwrap();
+                    let mut encoded: Vec<u8> = bincode::encode_to_vec(&awk_frame_message, config).unwrap();
                     encoded.insert(0, awk_frame_message.message_type.to_u8());
                     let _ = self.send_to_server.send(encoded);
                     self.encoded_world_states.add_new_data((message.current_frame_number, message.data.clone()));
 
                     if self.latest_game_state.is_none() || self.latest_game_state.as_ref().unwrap().frame_number <= message.current_frame_number {
 
-                        let world : World = serde_json::from_slice(&message.data).unwrap();
-
+                        let world : World = World::new_from_byte_array(message.data);
+                        
                         self.latest_game_state = Some(world);
                     }
                 }
@@ -78,10 +81,10 @@ impl Rift {
                 }
             },
             ToPlayerMessageType::StateWorld => {
-                let world : World = serde_json::from_slice(&message.data[..]).unwrap();
+                let world : World = World::new_from_byte_array((&message.data[..]).to_vec());
                 self.encoded_world_states.add_new_data((message.current_frame_number, message.data));
                 let awk_frame_message = AwkFrameMessage::new(message.current_frame_number);
-                let mut encoded: Vec<u8> = serde_json::to_vec(&awk_frame_message).unwrap();
+                let mut encoded: Vec<u8> = bincode::encode_to_vec(&awk_frame_message, config).unwrap();
                 encoded.insert(0, awk_frame_message.message_type.to_u8());
                 let _ = self.send_to_server.send(encoded);
                 self.latest_game_state = Some(world);
@@ -94,7 +97,7 @@ impl Rift {
     pub fn update(&mut self, ctx: &mut Context<AgmaClientApp>, delta: f32) {
         ctx.clear(ClearMode::new().with_color(RGBA8::BLUE).with_depth(0.0, DepthTest::Greater));
         // the message, it will be cut off.
-
+        let config = config::standard();
         let from_server_messages : Vec<UpdateWorldMessage> = self.recv_from_server.try_iter().collect();
         for message in from_server_messages {
             self.handle_message_update(message);
@@ -111,31 +114,16 @@ impl Rift {
         if self.previous_mouse_inputs.len() >= 16 {
             self.previous_mouse_inputs.remove(0);
         }
-        let mut encoded: Vec<u8> = serde_json::to_vec(&to_server_input_message).unwrap();
+        let mut encoded: Vec<u8> = bincode::encode_to_vec(&to_server_input_message, config).unwrap();
         encoded.insert(0, to_server_input_message.message_type.to_u8());
         let _ = self.send_to_server.send(encoded);
 
         if self.latest_game_state.is_some() {
-
-            {
-                let world = self.latest_game_state.as_mut().unwrap();
-              //  self.camera.look_at(world.entities[0].position());
-                self.camera.update(delta);
-            }
-
-            let world_point = self.camera.transform.screen_to_world(self.last_mouse_click_position);
-            println!("{:?} {:?}", world_point, self.last_mouse_click_position);
-
-            let camera_point = self.camera.pos;
-            let direction = (world_point - camera_point).normalize();
-            let t = -(world_point.dot(Vector3::<f32>::unit_y())) / direction.dot(Vector3::<f32>::unit_y());
-            let plane_intercept = world_point + (t * direction);
-
-            info!("{:?}", plane_intercept);
+            let plane_intercept = self.camera.point_on_floor_plane(storm::cgmath::Vector2::new(self.last_mouse_click_position.x, self.last_mouse_click_position.y));
             self.previous_mouse_inputs.push(MouseState::new(self.current_mouse_input_value != 0, plane_intercept));
             let to_server_mouse_input_message = MouseActionMessage::new(self.previous_mouse_inputs.clone());
-            self.latest_game_state.as_mut().unwrap().click_inputs = self.previous_mouse_inputs.iter().map(|x|WorldMouseState::new(x)).collect();
-            let mut encoded: Vec<u8> = serde_json::to_vec(&to_server_mouse_input_message).unwrap();
+            //self.latest_game_state.as_mut().unwrap().click_inputs = self.previous_mouse_inputs.iter().map(|x|WorldMouseState::new(x)).collect();
+            let mut encoded: Vec<u8> = bincode::encode_to_vec(&to_server_mouse_input_message, config).unwrap();
             encoded.insert(0, to_server_mouse_input_message.message_type.to_u8());
             let _ = self.send_to_server.send(encoded);
         }
@@ -143,8 +131,14 @@ impl Rift {
         
         match &mut self.latest_game_state.as_mut() {
             Some(world) => {
-                self.rune_system.add_runes(world.movement_system(1.0));
-                self.rune_system.execute_current_stack(world);
+                let mut transforms_maybe = world.borrow_component_vec::<TransformComponent>().unwrap();
+                let mut player_component = world.borrow_component_vec::<ChampionComponent>().unwrap();
+                let zip = transforms_maybe.iter_mut().zip(player_component.iter_mut());
+                let mut player_transform_query = zip.filter_map(|(tc, cc)|Some((tc.as_mut()?, cc.as_mut()?)));
+                for (tc, cc) in player_transform_query {
+                    self.camera.look_at(tc.position());
+                    self.camera.second_update(tc.position());    
+                }
             },
             None => {
 
@@ -156,29 +150,53 @@ impl Rift {
     }
     
     pub fn render_world(&mut self) {
+        
         self.render_state.floor_buffer.set(&self.render_state.floor.as_slice());
         self.render_state.texture_shader.draw(&self.camera.model_view_projection_uniform(&Matrix4::from_scale(100.0)), &self.render_state.floor_texture, &self.render_state.floor_buffer);
+        
 
         if self.latest_game_state.is_some() {
             let game_state = self.latest_game_state.as_ref().unwrap();
-            for transform in game_state.entities.iter() {
-                self.render_state.particle_buffer.set(&self.render_state.cube.as_slice());
-                self.render_state.model_shader.draw(&self.camera.model_view_projection_uniform(&transform.transform), &self.render_state.particle_buffer);
+            {
+                //Player rendering system
+                let mut transforms_maybe = game_state.borrow_component_vec::<TransformComponent>().unwrap();
+                let mut player_component = game_state.borrow_component_vec::<ChampionComponent>().unwrap();
+                let zip = transforms_maybe.iter_mut().zip(player_component.iter_mut());
+                let mut player_transform_query = zip.filter_map(|(tc, cc)|Some((tc.as_mut()?, cc.as_mut()?)));
+                for (tc, cc) in player_transform_query {
+                    self.render_state.particle_buffer.set(&self.render_state.cube.as_slice());
+                    self.render_state.model_shader.draw(&self.camera.model_view_projection_uniform(&tc.transform), &self.render_state.particle_buffer);
+                }
             }
-        }    
+            {
+                let mut minion_components = game_state.borrow_component_vec::<MinionComponent>().unwrap();
+                let mut transform_components = game_state.borrow_component_vec::<TransformComponent>().unwrap();
+    
+                let zip = minion_components.iter_mut().zip(transform_components.iter_mut());
+    
+                let mut move_champions_iter = zip.filter_map(|(mc, tc)|Some((mc.as_mut()?, tc.as_mut()?)));
+                for (mc, tc) in move_champions_iter {
+                    self.render_state.particle_buffer.set(&self.render_state.cube.as_slice());
+                    self.render_state.model_shader.draw(&self.camera.model_view_projection_uniform(&tc.transform), &self.render_state.particle_buffer);
+                }
+            }
+
+
+        }
+    
     }
 
     pub fn on_cursor_pressed(
         &mut self,
         _ctx: &mut Context<AgmaClientApp>,
         button: event::CursorButton,
-        _physical_pos: cgmath::Vector2<f32>,
-        normalized_pos: cgmath::Vector2<f32>,
+        _physical_pos: storm::cgmath::Vector2<f32>,
+        normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
         match button {
             CursorButton::Right => {
                 self.current_mouse_input_value |= 1;            
-                self.last_mouse_click_position = normalized_pos;
+                self.last_mouse_click_position = Vector2::new(normalized_pos.x, normalized_pos.y);
             },
             CursorButton::Left => {
                 self.current_mouse_input_value |= 2;
@@ -193,8 +211,8 @@ impl Rift {
         &mut self,
         _ctx: &mut Context<AgmaClientApp>,
         button: event::CursorButton,
-        _physical_pos: cgmath::Vector2<f32>,
-        _normalized_pos: cgmath::Vector2<f32>,
+        _physical_pos: storm::cgmath::Vector2<f32>,
+        _normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
         match button {
             CursorButton::Right => {
@@ -244,8 +262,8 @@ impl Rift {
         }
     }
 
-    pub fn on_cursor_delta(&mut self, _ctx: &mut Context<AgmaClientApp>, delta: cgmath::Vector2<f32>, _focused: bool) {
-        self.camera.look(delta);
+    pub fn on_cursor_delta(&mut self, _ctx: &mut Context<AgmaClientApp>, delta: storm::cgmath::Vector2<f32>, _focused: bool) {
+        //self.camera.look(delta);
     }
 
     pub fn on_key_released(&mut self, _ctx: &mut Context<AgmaClientApp>, key: event::KeyboardButton) {

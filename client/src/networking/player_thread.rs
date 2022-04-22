@@ -5,10 +5,12 @@ use std::time::Duration;
 use std::thread::sleep;
 use std::thread;
 use std::net::UdpSocket;
+use bincode::*;
 
 pub fn start_player_thread(server_address: String) -> (Receiver<UpdateWorldMessage>, Sender<Vec<u8>>) {
     let (send_to_client, recv_from_server) : (Sender<UpdateWorldMessage>, Receiver<UpdateWorldMessage>) = channel();
     let (send_to_server, recv_from_client) : (Sender<Vec<u8>>, Receiver<Vec<u8>>) = channel();
+    let config = config::standard();
     thread::spawn(move||{
         let socket =  UdpSocket::bind(server_address).unwrap();
         //We want to have this be non blocking, so we can alternate between
@@ -27,10 +29,8 @@ pub fn start_player_thread(server_address: String) -> (Receiver<UpdateWorldMessa
                         }
                         let buf = &mut buf[..amt];
                         let decode = bitfield_rle::decode(&buf[..]).unwrap();
-                        let foo: UpdateWorldMessage = serde_json::from_slice(&decode).unwrap();
-            
+                        let (foo, _len): (UpdateWorldMessage, usize) = bincode::decode_from_slice(&decode, config).unwrap();
                         let _ = send_to_client.send(foo);
-        
                     },
                     Err(_) => {
                         break;
