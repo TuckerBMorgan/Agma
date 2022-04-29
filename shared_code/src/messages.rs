@@ -94,15 +94,17 @@ impl PlayerToServerMessage {
 #[repr(C)]
 pub struct MouseState {
     pub button_down: bool,
+    pub was_down: bool,
     pub x: f32,
     pub y: f32,
     pub z: f32
 }
 
 impl MouseState {
-    pub fn new(mouse_down: bool, world_pos: Vector3<f32>) -> MouseState {
+    pub fn new(mouse_down: bool, was_down: bool, world_pos: Vector3<f32>) -> MouseState {
         MouseState {
             button_down: mouse_down,
+            was_down,
             x: world_pos.x,
             y: world_pos.y,
             z: world_pos.z

@@ -14,6 +14,7 @@ pub struct Rift {
     previous_mouse_inputs: Vec<MouseState>,
     current_input_value: u8,
     current_mouse_input_value: u8,
+    was_mouse_button_down_last_frame: bool,
     last_mouse_click_position: Vector2<f32>,
     camera: Camera,
     render_state: RenderState,
@@ -32,6 +33,7 @@ impl Rift {
             previous_mouse_inputs: vec![],
             current_input_value: 0,
             current_mouse_input_value: 0,
+            was_mouse_button_down_last_frame: false,
             last_mouse_click_position: Vector2::new(0.0, 0.0),
             camera: Camera::new(ctx),
             render_state: RenderState::new(ctx),
@@ -120,7 +122,7 @@ impl Rift {
 
         if self.latest_game_state.is_some() {
             let plane_intercept = self.camera.point_on_floor_plane(storm::cgmath::Vector2::new(self.last_mouse_click_position.x, self.last_mouse_click_position.y));
-            self.previous_mouse_inputs.push(MouseState::new(self.current_mouse_input_value != 0, plane_intercept));
+            self.previous_mouse_inputs.push(MouseState::new(self.current_mouse_input_value != 0, self.was_mouse_button_down_last_frame, plane_intercept));
             let to_server_mouse_input_message = MouseActionMessage::new(self.previous_mouse_inputs.clone());
             //self.latest_game_state.as_mut().unwrap().click_inputs = self.previous_mouse_inputs.iter().map(|x|WorldMouseState::new(x)).collect();
             let mut encoded: Vec<u8> = bincode::encode_to_vec(&to_server_mouse_input_message, config).unwrap();
@@ -147,6 +149,13 @@ impl Rift {
 
 
         self.render_world();
+
+        if self.current_mouse_input_value > 0 {
+            self.was_mouse_button_down_last_frame = true;
+        }
+        else {
+            self.was_mouse_button_down_last_frame = false;
+        }
     }
     
     pub fn render_world(&mut self) {

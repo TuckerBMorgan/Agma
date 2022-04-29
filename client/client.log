@@ -1,56 +1,13 @@
-[00:00:00.000] (2dd0) INFO   Using the provided logger.
-[00:00:00.171] (2dd0) INFO   Created window.
-[00:00:00.171] (2dd0) TRACE  MAX_TEXTURE_SIZE: 32768
-[00:00:00.184] (2dd0) TRACE  Configured vertex client::rendering::model_vertex::ModelVertex: Size 24, Stride: 24
-[00:00:00.185] (2dd0) TRACE  Configured vertex client::rendering::textured_vertex::TexturedVertex: Size 20, Stride: 20
-[00:00:00.192] (2dd0) TRACE  Window resized: Physical(Vector2 [1904.0, 990.0]) Logical(Vector2 [1904.0, 990.0])
-[00:00:00.192] (2dd0) TRACE  Window resized: Physical(Vector2 [1280.0, 1024.0]) Logical(Vector2 [1280.0, 1024.0])
-[00:00:01.195] (2dd0) TRACE  Event::Update   :  146 /    5972 tps |  167433 ns
-[00:00:02.202] (2dd0) TRACE  Event::Update   :  145 /   16683 tps |   59940 ns
-[00:00:03.202] (2dd0) TRACE  Event::Update   :  144 /   23716 tps |   42166 ns
-[00:00:04.209] (2dd0) TRACE  Event::Update   :  145 /   19728 tps |   50688 ns
-[00:00:05.216] (2dd0) TRACE  Event::Update   :  145 /   27583 tps |   36254 ns
-[00:00:06.223] (2dd0) TRACE  Event::Update   :  145 /   27182 tps |   36790 ns
-[00:00:07.231] (2dd0) TRACE  Event::Update   :  145 /   23002 tps |   43473 ns
-[00:00:08.237] (2dd0) TRACE  Event::Update   :  145 /   16121 tps |   62030 ns
-[00:00:09.244] (2dd0) TRACE  Event::Update   :  145 /   27915 tps |   35823 ns
-[00:00:10.244] (2dd0) TRACE  Event::Update   :  144 /   31195 tps |   32057 ns
-[00:00:11.252] (2dd0) TRACE  Event::Update   :  145 /   30392 tps |   32903 ns
-[00:00:12.258] (2dd0) TRACE  Event::Update   :  145 /   20449 tps |   48901 ns
-[00:00:13.266] (2dd0) TRACE  Event::Update   :  145 /   18333 tps |   54544 ns
-[00:00:14.272] (2dd0) TRACE  Event::Update   :  145 /   20185 tps |   49541 ns
-[00:00:15.279] (2dd0) TRACE  Event::Update   :  145 /   25767 tps |   38810 ns
-[00:00:16.286] (2dd0) TRACE  Event::Update   :  145 /   15216 tps |   65717 ns
-[00:00:17.293] (2dd0) TRACE  Event::Update   :  145 /   24638 tps |   40588 ns
-[00:00:18.293] (2dd0) TRACE  Event::Update   :  144 /   17430 tps |   57371 ns
-[00:00:19.300] (2dd0) TRACE  Event::Update   :  145 /   20777 tps |   48130 ns
-[00:00:20.306] (2dd0) TRACE  Event::Update   :  145 /   23417 tps |   42704 ns
-[00:00:21.307] (2dd0) TRACE  Event::Update   :  144 /   20683 tps |   48347 ns
-[00:00:22.313] (2dd0) TRACE  Event::Update   :  145 /   15628 tps |   63987 ns
-[00:00:23.314] (2dd0) TRACE  Event::Update   :  144 /   16179 tps |   61808 ns
-[00:00:24.320] (2dd0) TRACE  Event::Update   :  145 /   18529 tps |   53969 ns
-[00:00:25.327] (2dd0) TRACE  Event::Update   :  145 /   18952 tps |   52763 ns
-[00:00:26.327] (2dd0) TRACE  Event::Update   :  144 /   19772 tps |   50576 ns
-[00:00:27.328] (2dd0) TRACE  Event::Update   :  144 /   20296 tps |   49271 ns
-[00:00:28.334] (2dd0) TRACE  Event::Update   :  145 /   19787 tps |   50537 ns
-[00:00:29.335] (2dd0) TRACE  Event::Update   :  144 /   23160 tps |   43178 ns
-[00:00:30.341] (2dd0) TRACE  Event::Update   :  145 /   16065 tps |   62246 ns
-[00:00:31.341] (2dd0) TRACE  Event::Update   :  144 /   18291 tps |   54672 ns
-[00:00:32.341] (2dd0) TRACE  Event::Update   :  144 /   16942 tps |   59022 ns
-[00:00:33.348] (2dd0) TRACE  Event::Update   :  145 /   14756 tps |   67770 ns
-[00:00:34.348] (2dd0) TRACE  Event::Update   :  144 /   19956 tps |   50110 ns
-[00:00:35.348] (2dd0) TRACE  Event::Update   :  144 /   16186 tps |   61779 ns
-[00:00:36.348] (2dd0) TRACE  Event::Update   :  144 /   17961 tps |   55676 ns
-[00:00:37.355] (2dd0) TRACE  Event::Update   :  145 /   21434 tps |   46654 ns
-[00:00:38.355] (2dd0) TRACE  Event::Update   :  144 /   22854 tps |   43756 ns
-[00:00:39.356] (2dd0) TRACE  Event::Update   :  144 /   16521 tps |   60528 ns
-[00:00:40.362] (2dd0) TRACE  Event::Update   :  145 /   18334 tps |   54542 ns
-[00:00:41.369] (2dd0) TRACE  Event::Update   :  145 /   17907 tps |   55844 ns
-[00:00:42.376] (2dd0) TRACE  Event::Update   :  145 /   15522 tps |   64422 ns
-[00:00:43.383] (2dd0) TRACE  Event::Update   :  145 /   13908 tps |   71901 ns
-[00:00:44.383] (2dd0) TRACE  Event::Update   :  144 /   20372 tps |   49085 ns
-[00:00:45.390] (2dd0) TRACE  Event::Update   :  145 /   23759 tps |   42089 ns
-[00:00:46.390] (2dd0) TRACE  Event::Update   :  144 /   21197 tps |   47176 ns
-[00:00:47.397] (2dd0) TRACE  Event::Update   :  145 /   22159 tps |   45128 ns
-[00:00:48.397] (2dd0) TRACE  Event::Update   :  144 /   17665 tps |   56606 ns
-[00:00:49.397] (2dd0) TRACE  Event::Update   :  144 /   18329 tps |   54557 ns
+[00:00:00.000] (3bc8) INFO   Using the provided logger.
+[00:00:00.197] (3bc8) INFO   Created window.
+[00:00:00.198] (3bc8) TRACE  MAX_TEXTURE_SIZE: 32768
+[00:00:00.212] (3bc8) TRACE  Configured vertex client::rendering::model_vertex::ModelVertex: Size 24, Stride: 24
+[00:00:00.212] (3bc8) TRACE  Configured vertex client::rendering::textured_vertex::TexturedVertex: Size 20, Stride: 20
+[00:00:00.219] (3bc8) TRACE  Window resized: Physical(Vector2 [1904.0, 990.0]) Logical(Vector2 [1904.0, 990.0])
+[00:00:00.220] (3bc8) TRACE  Window resized: Physical(Vector2 [1280.0, 1024.0]) Logical(Vector2 [1280.0, 1024.0])
+[00:00:01.222] (3bc8) TRACE  Event::Update   :  143 /    3929 tps |  254482 ns
+[00:00:02.222] (3bc8) TRACE  Event::Update   :  144 /   18692 tps |   53497 ns
+[00:00:03.229] (3bc8) TRACE  Event::Update   :  145 /   20189 tps |   49532 ns
+[00:00:04.236] (3bc8) TRACE  Event::Update   :  145 /   22387 tps |   44668 ns
+[00:00:05.243] (3bc8) TRACE  Event::Update   :  145 /   22873 tps |   43719 ns
+[00:00:06.249] (3bc8) TRACE  Event::Update   :  145 /   24703 tps |   40480 ns

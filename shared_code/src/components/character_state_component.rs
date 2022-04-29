@@ -1,12 +1,28 @@
 use bincode::{Decode, Encode};
 
 use cgmath::*;
+
+#[derive(PartialEq, Debug, Copy, Clone)]
+struct AutoAttackState {
+    pub target: usize,
+    pub progress: usize
+}
+
+impl AutoAttackState {
+    pub fn new(target: usize, progress: usize) -> AutoAttackState {
+        AutoAttackState {
+            target,
+            progress
+        }
+    }
+}
+
 /// An enum used to represent the state of the character
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum CharacterState {
     Idle,
     Moving(Vector3<f32>),
-    AutoAttacking(usize)
+    AutoAttacking(AutoAttackState)
 }
 
 impl bincode::Encode for CharacterState {
@@ -30,10 +46,11 @@ impl bincode::Encode for CharacterState {
                 bincode::Encode::encode(&location.y, encoder)?;
                 bincode::Encode::encode(&location.z, encoder)?;
             },
-            CharacterState::AutoAttacking(id) => {
+            CharacterState::AutoAttacking(autoattackstate) => {
                 let tag : u32 = 2;
                 bincode::Encode::encode(&tag, encoder)?;
-                bincode::Encode::encode(&id, encoder)?;
+                bincode::Encode::encode(&autoattackstate.target, encoder)?;
+                bincode::Encode::encode(&autoattackstate.progress, encoder)?;
             }
         }
         Ok(())
@@ -56,8 +73,13 @@ impl bincode::Decode for CharacterState {
                 bincode::Decode::decode(decoder).unwrap())
             ));
         }
-        else if tag == 2 {
-            return Ok(CharacterState::AutoAttacking(bincode::Decode::decode(decoder).unwrap()));
+        else if tag == 2 {            
+            return Ok(CharacterState::AutoAttacking(
+                AutoAttackState {
+                    target: bincode::Decode::decode(decoder).unwrap(),
+                    progress: bincode::Decode::decode(decoder).unwrap()
+                }
+            ));
         }
         panic!("This tag has not yet been implemented for Movemenet state decoding, add it to the if statement above");
     }
@@ -77,4 +99,3 @@ impl CharacterStateComponent {
         }
     }
 }
-

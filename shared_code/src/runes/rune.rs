@@ -1,6 +1,8 @@
 use cgmath::*;
 use std::collections::HashMap;
 
+use crate::*;
+
 /// A wrapping structure for all runes
 /// essentially a tagged structure allowing
 /// runes heap allocated and stored in generic structures
@@ -11,7 +13,8 @@ use std::collections::HashMap;
 /// and Rune::(usize, size)
 /// Rune::(usize) will still be of size (usize, usize)
 pub enum Rune {
-    MoveRune(Box<MoveRune>)
+    MoveRune(Box<MoveRune>),
+    DamageRune(Box<DamageRune>)
 }
 
 impl Rune {
@@ -21,6 +24,9 @@ impl Rune {
         match self {
             Rune::MoveRune(_) => {
                 return 0;
+            },
+            Rune::DamageRune(_) => {
+                return 1;
             }
         }
     }
@@ -30,7 +36,7 @@ impl Rune {
 /// it will collect runes until it is drained
 pub struct RuneSystem {
     //This will need to change
-    current_runes: HashMap<usize, Vec<Rune>>,
+    current_runes: HashMap<usize, Vec<Rune>>
 
 }
 
@@ -51,19 +57,66 @@ impl RuneSystem {
         }
         self.current_runes.get_mut(&rune.value()).unwrap().push(rune);
     }
-}
 
-#[derive(Copy, Clone, Debug)]
-pub struct MoveRune {
-    entity: usize,
-    desired_amount: Vector3<f32>
-}
+    pub fn resolve_world_state(&mut self, world: &mut World) {
+        
+        let movement_runes = self.current_runes.remove(&0).unwrap();
+        self.handle_move_runes(movement_runes, world);
 
-impl MoveRune {
-    pub fn new(entity: usize, desired_amount: Vector3<f32>) -> MoveRune {
-        MoveRune {
-            entity,
-            desired_amount
+        let damage_runes = self.current_runes.remove(&1).unwrap();
+        self.handle_damage_runes(damage_runes, world);
+    }
+
+    pub fn handle_move_runes(&mut self, mut movement_runes: Vec<Rune>, world: &mut World) {
+        let movement_runes : Vec<MoveRune> = movement_runes.iter_mut().map(
+            |x|
+            match x {
+                Rune::MoveRune(move_rune) => {
+                    return *move_rune.to_owned();
+                },
+                _ => {
+                    panic!("COME AND GET ME");
+                }
+            }
+        ).collect();
+
+        let transforms = world.borrow_component_vec::<TransformComponent>().unwrap();
+
+        // Find all of the places we want to move objects to
+        for rune in movement_runes.iter() {
+            let current_transform = transforms[rune.entity];
+            match current_transform {
+                Some(mut current_transform) => {
+                    current_transform.move_character(rune.desired_amount);
+                },
+                None => {}
+            }
+        }
+    }
+
+    pub fn handle_damage_runes(&mut self, mut damage_runes: Vec<Rune>, world: &mut World) {
+        let damage_runes : Vec<MoveRune> = damage_runes.iter_mut().map(
+            |x|
+            match x {
+                Rune::DamageRune(damage_rune) => {
+                    return *damage_rune.to_owned();
+                },
+                _ => {
+                    panic!("COME AND GET ME");
+                }
+            }
+        ).collect();
+
+        let health_components = world.borrow_component_vec::<HealthComponent>().unwrap();
+        // Find all of the places we want to move objects to
+        for rune in damage_runes.iter() {
+            let current_health = health_components[rune.target];
+            match current_health {
+                Some(mut current_health) => {
+                    current_health.do_damage(rune.amount);
+                },
+                None => {}
+            }
         }
     }
 }
