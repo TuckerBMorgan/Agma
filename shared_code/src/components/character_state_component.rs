@@ -3,7 +3,7 @@ use bincode::{Decode, Encode};
 use cgmath::*;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-struct AutoAttackState {
+pub struct AutoAttackState {
     pub target: usize,
     pub progress: usize
 }

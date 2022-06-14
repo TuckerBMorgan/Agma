@@ -7,17 +7,19 @@ pub struct RenderState {
     pub floor: Vec<TexturedVertex>,
     pub texture_shader: TextureShader,
     pub floor_texture: Texture,
-    pub particle_buffer: Buffer<ModelVertex>,
-    pub cube: Vec<ModelVertex>,
-    pub model_shader: ModelShader,
+    pub particle_buffer: Buffer<SkinnedVertex>,
+    pub skinned_shader_pass: SkinnedShaderPass,
+    pub animation: SkinnedAnimation,
+    pub model_shader: SkinnedShader,
 }
 
 
 impl RenderState {
     pub fn new(ctx: &mut Context<AgmaClientApp>) -> RenderState {
         RenderState {
-            model_shader: ModelShader::new(ctx),
-            cube: create_cube().to_vec(),
+            skinned_shader_pass: SkinnedShaderPass::new(Matrix4::zero(), ctx),
+            model_shader: SkinnedShader::new(ctx),
+            animation: create_skinned_mesh_from_file(),
             particle_buffer: Buffer::new(ctx),
             floor_buffer: Buffer::new(ctx),    
             floor: create_plane().to_vec(),

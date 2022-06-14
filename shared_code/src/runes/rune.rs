@@ -59,12 +59,15 @@ impl RuneSystem {
     }
 
     pub fn resolve_world_state(&mut self, world: &mut World) {
+        if self.current_runes.contains_key(&0) {        
+            let movement_runes = self.current_runes.remove(&0).unwrap();
+            self.handle_move_runes(movement_runes, world);
+        }
         
-        let movement_runes = self.current_runes.remove(&0).unwrap();
-        self.handle_move_runes(movement_runes, world);
-
-        let damage_runes = self.current_runes.remove(&1).unwrap();
-        self.handle_damage_runes(damage_runes, world);
+        if self.current_runes.contains_key(&1) {
+            let damage_runes = self.current_runes.remove(&1).unwrap();
+            self.handle_damage_runes(damage_runes, world);
+        }
     }
 
     pub fn handle_move_runes(&mut self, mut movement_runes: Vec<Rune>, world: &mut World) {
@@ -80,14 +83,15 @@ impl RuneSystem {
             }
         ).collect();
 
-        let transforms = world.borrow_component_vec::<TransformComponent>().unwrap();
+        let mut transforms = world.borrow_component_vec::<TransformComponent>().unwrap();
 
         // Find all of the places we want to move objects to
         for rune in movement_runes.iter() {
-            let current_transform = transforms[rune.entity];
+            let current_transform = transforms.get_mut(rune.entity);
             match current_transform {
                 Some(mut current_transform) => {
-                    current_transform.move_character(rune.desired_amount);
+                    
+                    current_transform.as_mut().unwrap().move_character(rune.desired_amount);
                 },
                 None => {}
             }
@@ -95,7 +99,7 @@ impl RuneSystem {
     }
 
     pub fn handle_damage_runes(&mut self, mut damage_runes: Vec<Rune>, world: &mut World) {
-        let damage_runes : Vec<MoveRune> = damage_runes.iter_mut().map(
+        let damage_runes : Vec<DamageRune> = damage_runes.iter_mut().map(
             |x|
             match x {
                 Rune::DamageRune(damage_rune) => {
@@ -107,13 +111,13 @@ impl RuneSystem {
             }
         ).collect();
 
-        let health_components = world.borrow_component_vec::<HealthComponent>().unwrap();
+        let mut health_components = world.borrow_component_vec::<HealthComponent>().unwrap();
         // Find all of the places we want to move objects to
         for rune in damage_runes.iter() {
-            let current_health = health_components[rune.target];
+            let current_health = health_components.get_mut(rune.target);
             match current_health {
                 Some(mut current_health) => {
-                    current_health.do_damage(rune.amount);
+                    current_health.as_mut().unwrap().do_damage(rune.amount);
                 },
                 None => {}
             }

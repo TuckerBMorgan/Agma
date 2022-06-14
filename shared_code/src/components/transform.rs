@@ -22,6 +22,7 @@ impl TransformComponent {
     }
 
     pub fn move_character(&mut self, offset: Vector3<f32>) {
+        println!("{:?}", offset);
         self.transform = self.transform.mul(Matrix4::from_translation(offset));
     }
 }

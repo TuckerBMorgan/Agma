@@ -131,15 +131,15 @@ impl World {
                 self.component_vecs.push(Box::new(RefCell::new(test)));
             }
             else if bytes[current_index] == 5 {
-                let test = self.decode_component_vector_from_byte_array::<AutoAttackComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            else if bytes[current_index] == 6 {
                 let test = self.decode_component_vector_from_byte_array::<TeamComponent>(&bytes[range]);
                 self.component_vecs.push(Box::new(RefCell::new(test)));
             }
-            else if bytes[current_index] == 7 {
+            else if bytes[current_index] == 6 {
                 let test = self.decode_component_vector_from_byte_array::<HealthComponent>(&bytes[range]);
+                self.component_vecs.push(Box::new(RefCell::new(test)));
+            }
+            else if bytes[current_index] == 7 {
+                let test = self.decode_component_vector_from_byte_array::<RadiusComponent>(&bytes[range]);
                 self.component_vecs.push(Box::new(RefCell::new(test)));
             }
             
@@ -150,6 +150,7 @@ impl World {
         }
     }
 
+    //TODO: rip this out, as it will clash with those things that use TeamComponent in a system
     pub fn are_friends(&self, entity_a: usize, entity_b: usize) -> bool {
         let team_components = self.borrow_component_vec::<TeamComponent>().unwrap();
         let a = team_components[entity_a];
@@ -318,36 +319,4 @@ impl World {
         }
         return final_big_chonky_array;
     }
-    /*
-    /// given an entity and a radius, return all entities that within that radius, without returning itself as well
-    pub fn all_entities_within_radius(&self, this_entity: usize, radius: f32) -> Vec<usize> {
-        let radius_sqaured = radius * radius;
-        let transforms = self.borrow_component_vec::<TransformComponent>();
-        let this_entity_transform = transforms[this_entity];
-        if this_entity_transform.is_none() {
-            return vec![];
-        }
-        let this_entity_transform = this_entity_transform.unwrap();
-        let mut return_vec = vec![];
-        for (index, comp) in component_vec.iter().enumerate() {
-            if index == this_entity {
-                continue;
-            }
-            match comp {
-                Some(transform) => {
-                    let difference = this_entity_transform.position().distance2(transform.position());
-                    if difference <= radius_sqaured {
-                        return_vec.push(index);
-                    }
-                },
-                None => {
-                    continue;
-                }
-            }
-        }
-        return return_vec;
-
-    }
-    */
-
 }

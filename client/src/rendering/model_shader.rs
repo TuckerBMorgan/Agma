@@ -28,7 +28,6 @@ impl ModelUniform {
     }
 }
 
-
 impl From<&mut PerspectiveCamera> for ModelUniform {
     fn from(item: &mut PerspectiveCamera) -> Self {
         ModelUniform::new(item.matrix())

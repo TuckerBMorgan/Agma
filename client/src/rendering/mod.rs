@@ -6,6 +6,10 @@ mod camera;
 mod textured_shader;
 mod textured_vertex;
 mod render_state;
+mod animation;
+mod skinned_animation;
+mod skinned_vertex;
+mod skinned_shader;
 
 pub use cube::*;
 pub use tpose::*;
@@ -15,3 +19,7 @@ pub use camera::*;
 pub use textured_shader::*;
 pub use textured_vertex::*;
 pub use render_state::*;
+pub use animation::*;
+pub use skinned_animation::*;
+pub use skinned_vertex::*;
+pub use skinned_shader::*;

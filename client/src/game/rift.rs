@@ -4,7 +4,7 @@ use crate::networking::*;
 use crate::rendering::*;
 use bincode::{config, Decode, Encode};
 use storm::cgmath::*;
-
+use std::ops::Mul;
 pub struct Rift {
     encoded_world_states: RingBuffer<(usize, Vec<u8>)>,
     latest_game_state: Option<World>,
@@ -18,7 +18,8 @@ pub struct Rift {
     last_mouse_click_position: Vector2<f32>,
     camera: Camera,
     render_state: RenderState,
-    rune_system: RuneSystem
+    rune_system: RuneSystem,
+    animation_timer: f32
 }
 
 impl Rift {
@@ -37,7 +38,8 @@ impl Rift {
             last_mouse_click_position: Vector2::new(0.0, 0.0),
             camera: Camera::new(ctx),
             render_state: RenderState::new(ctx),
-            rune_system: RuneSystem::new()
+            rune_system: RuneSystem::new(),
+            animation_timer: 0.0
         }
     }
 
@@ -129,7 +131,7 @@ impl Rift {
             encoded.insert(0, to_server_mouse_input_message.message_type.to_u8());
             let _ = self.send_to_server.send(encoded);
         }
-
+        self.camera.update(delta);
         
         match &mut self.latest_game_state.as_mut() {
             Some(world) => {
@@ -138,8 +140,8 @@ impl Rift {
                 let zip = transforms_maybe.iter_mut().zip(player_component.iter_mut());
                 let mut player_transform_query = zip.filter_map(|(tc, cc)|Some((tc.as_mut()?, cc.as_mut()?)));
                 for (tc, cc) in player_transform_query {
-                    self.camera.look_at(tc.position());
-                    self.camera.second_update(tc.position());    
+                  //  self.camera.look_at(tc.position());
+                  //  self.camera.second_update(tc.position());    
                 }
             },
             None => {
@@ -148,7 +150,7 @@ impl Rift {
         }
 
 
-        self.render_world();
+        self.render_world(delta);
 
         if self.current_mouse_input_value > 0 {
             self.was_mouse_button_down_last_frame = true;
@@ -158,11 +160,10 @@ impl Rift {
         }
     }
     
-    pub fn render_world(&mut self) {
-        
+    pub fn render_world(&mut self, delta: f32) {
+        self.animation_timer += delta * 0.1f32;
         self.render_state.floor_buffer.set(&self.render_state.floor.as_slice());
         self.render_state.texture_shader.draw(&self.camera.model_view_projection_uniform(&Matrix4::from_scale(100.0)), &self.render_state.floor_texture, &self.render_state.floor_buffer);
-        
 
         if self.latest_game_state.is_some() {
             let game_state = self.latest_game_state.as_ref().unwrap();
@@ -173,10 +174,18 @@ impl Rift {
                 let zip = transforms_maybe.iter_mut().zip(player_component.iter_mut());
                 let mut player_transform_query = zip.filter_map(|(tc, cc)|Some((tc.as_mut()?, cc.as_mut()?)));
                 for (tc, cc) in player_transform_query {
-                    self.render_state.particle_buffer.set(&self.render_state.cube.as_slice());
-                    self.render_state.model_shader.draw(&self.camera.model_view_projection_uniform(&tc.transform), &self.render_state.particle_buffer);
+
+                    let animated_transform = self.camera.transform.matrix().mul(tc.transform);
+                    let test =  self.render_state.animation.calculate_joint_matrix(0.5);
+                    self.render_state.skinned_shader_pass.set_uniform(animated_transform, test);
+
+                    self.render_state.skinned_shader_pass.buffer.set(self.render_state.animation.model.as_slice());
+                    info!("{:?}", self.render_state.animation.model.as_slice());
+                    panic!("__-_-_");
+                    self.render_state.skinned_shader_pass.draw(&self.render_state.model_shader);
                 }
             }
+            /*
             {
                 let mut minion_components = game_state.borrow_component_vec::<MinionComponent>().unwrap();
                 let mut transform_components = game_state.borrow_component_vec::<TransformComponent>().unwrap();
@@ -185,10 +194,13 @@ impl Rift {
     
                 let mut move_champions_iter = zip.filter_map(|(mc, tc)|Some((mc.as_mut()?, tc.as_mut()?)));
                 for (mc, tc) in move_champions_iter {
-                    self.render_state.particle_buffer.set(&self.render_state.cube.as_slice());
-                    self.render_state.model_shader.draw(&self.camera.model_view_projection_uniform(&tc.transform), &self.render_state.particle_buffer);
+                    self.render_state.particle_buffer.set(self.render_state.animation.model.as_slice());
+                    let animated_transform = self.camera.transform.matrix().mul(tc.transform);
+                    let skinned_uniform = Uniform::new(SkinnedUniform::new(animated_transform, self.render_state.animation.joint_matrices));
+                    self.render_state.skinned_shader_pass.draw(&skinned_uniform, &self.render_state.particle_buffer);
                 }
             }
+            */
 
 
         }
@@ -237,9 +249,7 @@ impl Rift {
     }
 
     pub fn on_key_pressed(&mut self, ctx: &mut Context<AgmaClientApp>, key: event::KeyboardButton, is_repeat: bool) {
-        if is_repeat {
-            return;
-        }
+
         match key {
             KeyboardButton::Escape => ctx.request_stop(),
             KeyboardButton::W => {
@@ -265,14 +275,14 @@ impl Rift {
                 self.camera.vertical_speed -= 1.0;
             }
             KeyboardButton::LControl => {
-                self.camera.multiplier += 4.0;
+                self.camera.multiplier += 8.0;
             }
             _ => {}
         }
     }
 
     pub fn on_cursor_delta(&mut self, _ctx: &mut Context<AgmaClientApp>, delta: storm::cgmath::Vector2<f32>, _focused: bool) {
-        //self.camera.look(delta);
+        self.camera.look(delta);
     }
 
     pub fn on_key_released(&mut self, _ctx: &mut Context<AgmaClientApp>, key: event::KeyboardButton) {
@@ -300,7 +310,7 @@ impl Rift {
                 self.camera.vertical_speed += 1.0;
             }
             KeyboardButton::LControl => {
-                self.camera.multiplier -= 4.0;
+                self.camera.multiplier -= 8.0;
             }
             _ => {}
         }

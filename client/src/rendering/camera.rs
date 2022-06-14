@@ -8,6 +8,11 @@ use crate::AgmaClientApp;
 use storm::Context;
 use storm::cgmath::*;
 
+pub enum CameraState {
+    Still,
+    Moving
+}
+
 pub struct Camera {
     /// Transform matix.
     pub transform: PerspectiveCamera,
@@ -28,6 +33,8 @@ pub struct Camera {
     /// Positive is up.
     pub vertical_speed: f32,
     pub multiplier: f32,
+    pub desired_point: Vector3<f32>,
+    pub state: CameraState
 }
 
 impl Camera {
@@ -37,7 +44,7 @@ impl Camera {
         Camera {
             transform,
             uniform,
-            pos: storm::cgmath::Vector3::new(0.0, 10.0, 10.0),
+            pos: storm::cgmath::Vector3::new(0.0, 0.0, 0.0),
             dir: storm::cgmath::Vector3::zero(),
             forward: storm::cgmath::Vector2::zero(),
             yaw: 0.0,
@@ -46,6 +53,8 @@ impl Camera {
             strafe_speed: 0.0,
             vertical_speed: 0.0,
             multiplier: 2.0,
+            desired_point: storm::cgmath::Vector3::new(0.0, 0.0, 0.0),
+            state: CameraState::Still
         }
     }
 
@@ -77,30 +86,46 @@ impl Camera {
         let y = self.pitch.sin_deg_fast();
         let z = cos_pitch * self.forward.y;
         self.dir = storm::cgmath::Vector3::new(x, y, z);
-        self.transform.set().direction = self.dir;
+        self.transform.set_direction(self.dir);
         self.uniform.set(&mut self.transform);
     }
     
     pub fn look_at(& mut self, point: storm::cgmath::Vector3<f32>) {
         self.dir = point - self.pos;
-        self.transform.set().direction = self.dir;
+        self.transform.set_direction(self.dir);
         self.uniform.set(&mut self.transform);
     }
 
     pub fn second_update(&mut self, entity_position: storm::cgmath::Vector3<f32>) {
-        self.pos = entity_position + storm::cgmath::Vector3::new(0.0, 10.0, -10.0);
-        self.transform.set().eye = self.pos;
-        self.uniform.set(&mut self.transform);
+        match self.state {
+            CameraState::Still => {
+                self.desired_point = entity_position + storm::cgmath::Vector3::new(0.0, 10.0, -10.0);
+                if (self.pos - self.desired_point).magnitude() > 1.0 {
+                    self.state = CameraState::Moving;
+                }
+             },
+            CameraState::Moving => {                
+                self.desired_point = entity_position + storm::cgmath::Vector3::new(0.0, 10.0, -10.0);
+                self.pos = self.pos + (self.desired_point - self.pos).normalize() * 0.1;
+                if (self.pos - self.desired_point).magnitude() < 1.5 {
+                    self.state = CameraState::Still;
+                }
+                self.transform.set_eye(self.pos);
+                self.uniform.set(&mut self.transform);
+            }
+        }
     }
     
     pub fn update(&mut self, time_delta: f32) {
+        
         let forward_speed = time_delta * self.forward_speed * self.multiplier;
         let strafe_speed = time_delta * self.strafe_speed * self.multiplier;
         let vertical_speed = time_delta * self.vertical_speed * self.multiplier;
         self.pos.x += (self.forward.x * forward_speed) + (-self.forward.y * strafe_speed);
         self.pos.z += (self.forward.y * forward_speed) + (self.forward.x * strafe_speed);
         self.pos.y += vertical_speed;
-        self.transform.set().eye = self.pos;
+        self.transform.set_eye(self.pos);
+       // self.transform.set_direction(self.dir);
         self.uniform.set(&mut self.transform);
     }
 
@@ -110,7 +135,7 @@ impl Camera {
     }
 
     pub fn point_on_floor_plane(&mut self, screen_normalized_points: storm::cgmath::Vector2<f32>) -> storm::cgmath::Vector3<f32> {
-        let world_point = self.transform.screen_to_world(screen_normalized_points);
+        let world_point = self.transform.screen_to_world_dir(screen_normalized_points);
         let camera_point = self.pos;
         let direction = (world_point - camera_point).normalize();
         let t = -(world_point.dot(storm::cgmath::Vector3::<f32>::unit_y())) / direction.dot(storm::cgmath::Vector3::<f32>::unit_y());
