@@ -247,6 +247,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cgmath_dolly"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b94d2be4785c4b9b2cb935e7b06a519f14d93976241df85605a4dc68f50044a0"
+dependencies = [
+ "cgmath",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -282,6 +291,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "bitfield-rle",
+ "cgmath_dolly",
  "gltf",
  "log",
  "rand",

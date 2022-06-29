@@ -1,15 +1,16 @@
 use crate::*;
-use cgmath::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct DamageRune {
+    pub source: usize,
     pub target: usize,
     pub amount: usize
 }
 
 impl DamageRune {
-    pub fn new(target: usize, amount: usize) -> DamageRune {
+    pub fn new(source: usize, target: usize, amount: usize) -> DamageRune {
         DamageRune {
+            source,
             target,
             amount
         }

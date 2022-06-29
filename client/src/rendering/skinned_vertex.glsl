@@ -1,5 +1,5 @@
 // Input vertex data, different for all executions of this shader.
-layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 0) in vec4 vertexPosition_modelspace;
 layout(location = 1) in uvec4 joints;
 layout(location = 2) in vec4 weights;
 
@@ -17,5 +17,5 @@ void main(){
                       weights.z * joints_matrix[int(joints.z)] + 
                       weights.w * joints_matrix[int(joints.w)];
 
-	gl_Position =  MVP * skinMatrix * vec4(vertexPosition_modelspace, 1);
+	gl_Position =  MVP * skinMatrix * vertexPosition_modelspace;
 }

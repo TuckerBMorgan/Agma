@@ -4,12 +4,11 @@ use storm::color::RGBA8;
 use storm::graphics::{ClearMode, DisplayMode, Vsync,Texture,TextureFiltering, WindowSettings, DepthTest};
 
 
-use storm::{color::*, event::*, graphics::*, math::*, Context, App, start, event, cgmath::*};
+use storm::{event::*, Context, App, start, event, cgmath::*};
 use storm::graphics::{Buffer};
 
 use std::time::Duration;
 
-use log::{info};
 use log::LevelFilter;
 
 mod game;

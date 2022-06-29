@@ -2,12 +2,14 @@ use crate::*;
 use std::sync::mpsc::{Sender, Receiver};
 use crate::networking::*;
 use crate::rendering::*;
-use bincode::{config, Decode, Encode};
-use storm::cgmath::*;
+use bincode::{config};
 use std::ops::Mul;
+use std::collections::HashSet;
+
+
 pub struct Rift {
     encoded_world_states: RingBuffer<(usize, Vec<u8>)>,
-    latest_game_state: Option<World>,
+    game_state: World,
     recv_from_server: Receiver<UpdateWorldMessage>,
     send_to_server: Sender<Vec<u8>>,
     previous_inputs: Vec<u8>,
@@ -16,18 +18,35 @@ pub struct Rift {
     current_mouse_input_value: u8,
     was_mouse_button_down_last_frame: bool,
     last_mouse_click_position: Vector2<f32>,
-    camera: Camera,
+    camera: NewCamera,
     render_state: RenderState,
-    rune_system: RuneSystem,
-    animation_timer: f32
+    ui_render_state: UIRenderState,
+    animation_timer: f32,
+    last_frames_entities: HashSet<usize>
 }
 
 impl Rift {
     pub fn new(ctx: &mut Context<AgmaClientApp>) -> Rift {
         let (recv_from_server, send_to_server) = start_player_thread(String::from("127.0.0.1:34255"));
+
+        //TODO: have this be generated based on a macro????
+        let mut w = World::new();
+        // put components you want replicated here
+        w.register_type::<EntityComponent>(true);
+        w.register_type::<PositionComponent>(true);
+        w.register_type::<ChampionComponent>(true);
+        w.register_type::<CharacterStateComponent>(true);
+        w.register_type::<MinionComponent>(true);
+        w.register_type::<TeamComponent>(true);
+        w.register_type::<HealthComponent>(true);
+        w.register_type::<RadiusComponent>(true);
+        w.register_type::<MovementStateComponent>(true);
+        w.register_type::<AttackStateComponent>(true);
+        w.register_type::<TransformComponent>(false);
+
         Rift {
             encoded_world_states: RingBuffer::new(),            
-            latest_game_state: None,
+            game_state: w,
             recv_from_server,
             send_to_server,
             previous_inputs: vec![],
@@ -36,10 +55,11 @@ impl Rift {
             current_mouse_input_value: 0,
             was_mouse_button_down_last_frame: false,
             last_mouse_click_position: Vector2::new(0.0, 0.0),
-            camera: Camera::new(ctx),
+            camera: NewCamera::new(ctx),
             render_state: RenderState::new(ctx),
-            rune_system: RuneSystem::new(),
-            animation_timer: 0.0
+            ui_render_state: UIRenderState::new(ctx),
+            animation_timer: 0.0,
+            last_frames_entities: HashSet::new()
         }
     }
 
@@ -72,11 +92,8 @@ impl Rift {
                     let _ = self.send_to_server.send(encoded);
                     self.encoded_world_states.add_new_data((message.current_frame_number, message.data.clone()));
 
-                    if self.latest_game_state.is_none() || self.latest_game_state.as_ref().unwrap().frame_number <= message.current_frame_number {
-
-                        let world : World = World::new_from_byte_array(message.data);
-                        
-                        self.latest_game_state = Some(world);
+                    if self.game_state.frame_number <= message.current_frame_number {
+                        self.game_state.rebuild_world(message.data);
                     }
                 }
                 else {
@@ -85,13 +102,13 @@ impl Rift {
                 }
             },
             ToPlayerMessageType::StateWorld => {
-                let world : World = World::new_from_byte_array((&message.data[..]).to_vec());
+                self.game_state.rebuild_world((&message.data[..]).to_vec());
                 self.encoded_world_states.add_new_data((message.current_frame_number, message.data));
                 let awk_frame_message = AwkFrameMessage::new(message.current_frame_number);
                 let mut encoded: Vec<u8> = bincode::encode_to_vec(&awk_frame_message, config).unwrap();
                 encoded.insert(0, awk_frame_message.message_type.to_u8());
                 let _ = self.send_to_server.send(encoded);
-                self.latest_game_state = Some(world);
+
             }
         }
     }
@@ -108,6 +125,9 @@ impl Rift {
         }
 
 
+        
+
+
         if self.previous_inputs.len() >= 16 {
             self.previous_inputs.remove(0);
         }
@@ -122,34 +142,22 @@ impl Rift {
         encoded.insert(0, to_server_input_message.message_type.to_u8());
         let _ = self.send_to_server.send(encoded);
 
-        if self.latest_game_state.is_some() {
-            let plane_intercept = self.camera.point_on_floor_plane(storm::cgmath::Vector2::new(self.last_mouse_click_position.x, self.last_mouse_click_position.y));
-            self.previous_mouse_inputs.push(MouseState::new(self.current_mouse_input_value != 0, self.was_mouse_button_down_last_frame, plane_intercept));
-            let to_server_mouse_input_message = MouseActionMessage::new(self.previous_mouse_inputs.clone());
-            //self.latest_game_state.as_mut().unwrap().click_inputs = self.previous_mouse_inputs.iter().map(|x|WorldMouseState::new(x)).collect();
-            let mut encoded: Vec<u8> = bincode::encode_to_vec(&to_server_mouse_input_message, config).unwrap();
-            encoded.insert(0, to_server_mouse_input_message.message_type.to_u8());
-            let _ = self.send_to_server.send(encoded);
-        }
-        self.camera.update(delta);
+
+        let plane_intercept = self.camera.point_on_floor_plane(storm::cgmath::Vector2::new(self.last_mouse_click_position.x, self.last_mouse_click_position.y));
+
+        self.previous_mouse_inputs.push(MouseState::new(self.current_mouse_input_value != 0, self.was_mouse_button_down_last_frame, plane_intercept));
+        let to_server_mouse_input_message = MouseActionMessage::new(self.previous_mouse_inputs.clone());
+
+        let mut encoded: Vec<u8> = bincode::encode_to_vec(&to_server_mouse_input_message, config).unwrap();
+        encoded.insert(0, to_server_mouse_input_message.message_type.to_u8());
+        let _ = self.send_to_server.send(encoded);
+
         
-        match &mut self.latest_game_state.as_mut() {
-            Some(world) => {
-                let mut transforms_maybe = world.borrow_component_vec::<TransformComponent>().unwrap();
-                let mut player_component = world.borrow_component_vec::<ChampionComponent>().unwrap();
-                let zip = transforms_maybe.iter_mut().zip(player_component.iter_mut());
-                let mut player_transform_query = zip.filter_map(|(tc, cc)|Some((tc.as_mut()?, cc.as_mut()?)));
-                for (tc, cc) in player_transform_query {
-                  //  self.camera.look_at(tc.position());
-                  //  self.camera.second_update(tc.position());    
-                }
-            },
-            None => {
-
-            }
-        }
 
 
+
+        self.setup_world();
+        self.camera.update(delta);
         self.render_world(delta);
 
         if self.current_mouse_input_value > 0 {
@@ -158,52 +166,155 @@ impl Rift {
         else {
             self.was_mouse_button_down_last_frame = false;
         }
+
+        {
+            self.last_frames_entities = HashSet::new();
+            let entity_with_transform;
+            query_2!(EntityComponent, TransformComponent, self.game_state, entity_with_transform);
+            for (ec, _tc) in entity_with_transform {
+                self.last_frames_entities.insert(ec.id);
+            }
+        }
+
+    }
+
+    pub fn setup_world(&mut self) {
+        let mut transform_to_add = vec![];
+        {
+            let entity = self.game_state.borrow_component_vec::<EntityComponent>().unwrap();
+            for ent in entity.iter() {
+                match ent {
+                    Some(ent) => {
+                        if self.last_frames_entities.contains(&ent.id) == false {
+                            transform_to_add.push(ent.id);
+                        }        
+                    },
+                    _ => {
+                        
+                    }
+                }
+            }
+        }
+
+        {
+            for id in transform_to_add {
+                self.game_state.add_component_to_entity(id, TransformComponent::new(Vector3::new(0.0, 0.0, 0.0), 0.0, Vector3::new(1.0, 1.0, 1.0)));
+            }
+        }
+        
+
+        {
+            let entity_transform_system;
+            query_4!(AttackStateComponent, PositionComponent, MovementStateComponent, TransformComponent, self.game_state, entity_transform_system);
+            for (asc, pc, msc, tc) in entity_transform_system {
+                if msc.is_moving {
+
+                    let direction_along_x = pc.x as f32 - tc.position().x;
+                    let direction_along_y = pc.y as f32 - tc.position().z;
+
+                    let moving_direction = Vector2::new(direction_along_x as f32, direction_along_y as f32).normalize();
+
+                    let player_x = pc.x as f32;
+                    //let player_x = player_x + (msc.current_move_speed as f32 / msc.move_speed as f32) * direction_along_x.signum() as f32;
+                    let player_y = pc.y as f32;
+                    //let player_y = player_y + (msc.current_move_speed as f32 / msc.move_speed as f32) * direction_along_y.signum() as f32;
+
+                    if (moving_direction.x != 0.0 || moving_direction.y != 0.0) && (tc.translation.desired_translation.x != pc.x as f32 || tc.translation.desired_translation.z != pc.y as f32) {
+                        tc.set_desired_translation(Vector3::new(player_x, 0.0, player_y));
+                        let mut desired = storm::cgmath::Deg::atan2(moving_direction.x, moving_direction.y).0;
+
+                        if desired > 360.0 {
+                            desired = desired % 360.0;
+                        }
+                        if desired < 0.0 {
+                            desired = 360.0 + desired;
+                        }
+
+
+                        tc.set_desired_rotation(desired);
+                    }
+                }
+                else if asc.is_attacking {
+                    
+                }
+                else {
+                    let player_x = pc.x as f32;
+                    let player_y = pc.y as f32;
+                    tc.set_desired_translation(Vector3::new(player_x, 0.0, player_y));
+                }
+
+                tc.update_transform();
+            }
+        }
+
+        let camera_position_system;
+        {
+            query_2!(ChampionComponent, TransformComponent, self.game_state, camera_position_system);
+            for (_cc, tc) in camera_position_system {
+                self.camera.update_player_position(tc.position());
+            }
+        }
+
+
+
     }
     
     pub fn render_world(&mut self, delta: f32) {
-        self.animation_timer += delta * 0.1f32;
         self.render_state.floor_buffer.set(&self.render_state.floor.as_slice());
         self.render_state.texture_shader.draw(&self.camera.model_view_projection_uniform(&Matrix4::from_scale(100.0)), &self.render_state.floor_texture, &self.render_state.floor_buffer);
 
-        if self.latest_game_state.is_some() {
-            let game_state = self.latest_game_state.as_ref().unwrap();
-            {
-                //Player rendering system
-                let mut transforms_maybe = game_state.borrow_component_vec::<TransformComponent>().unwrap();
-                let mut player_component = game_state.borrow_component_vec::<ChampionComponent>().unwrap();
-                let zip = transforms_maybe.iter_mut().zip(player_component.iter_mut());
-                let mut player_transform_query = zip.filter_map(|(tc, cc)|Some((tc.as_mut()?, cc.as_mut()?)));
-                for (tc, cc) in player_transform_query {
+        {
+            //Player rendering system
+            let entity_animation_component;
+            query_3!(TransformComponent, MovementStateComponent, AttackStateComponent, self.game_state, entity_animation_component);
 
-                    let animated_transform = self.camera.transform.matrix().mul(tc.transform);
-                    let test =  self.render_state.animation.calculate_joint_matrix(0.5);
-                    self.render_state.skinned_shader_pass.set_uniform(animated_transform, test);
-
-                    self.render_state.skinned_shader_pass.buffer.set(self.render_state.animation.model.as_slice());
-                    info!("{:?}", self.render_state.animation.model.as_slice());
-                    panic!("__-_-_");
-                    self.render_state.skinned_shader_pass.draw(&self.render_state.model_shader);
+            for (tc, msc, asc) in entity_animation_component {
+                let mut use_animation = String::from("Idle");
+                let mut length_along_animation = 0.0f32;
+                if msc.is_moving {
+                    use_animation = String::from("Running");
+                    length_along_animation = self.animation_timer;
+                    self.animation_timer += delta;
                 }
-            }
-            /*
-            {
-                let mut minion_components = game_state.borrow_component_vec::<MinionComponent>().unwrap();
-                let mut transform_components = game_state.borrow_component_vec::<TransformComponent>().unwrap();
-    
-                let zip = minion_components.iter_mut().zip(transform_components.iter_mut());
-    
-                let mut move_champions_iter = zip.filter_map(|(mc, tc)|Some((mc.as_mut()?, tc.as_mut()?)));
-                for (mc, tc) in move_champions_iter {
-                    self.render_state.particle_buffer.set(self.render_state.animation.model.as_slice());
-                    let animated_transform = self.camera.transform.matrix().mul(tc.transform);
-                    let skinned_uniform = Uniform::new(SkinnedUniform::new(animated_transform, self.render_state.animation.joint_matrices));
-                    self.render_state.skinned_shader_pass.draw(&skinned_uniform, &self.render_state.particle_buffer);
+                else if asc.is_attacking {
+                    use_animation = String::from("Attack");
+                    length_along_animation = asc.current_channel as f32 / asc.channel_timer as f32;
                 }
+                
+                if self.animation_timer > self.render_state.skinned_animation_library.loaded_animations[&use_animation].length_of_animation {
+                    self.animation_timer = 0.0;
+                }
+                
+                length_along_animation = self.render_state.skinned_animation_library.loaded_animations[&use_animation].length_of_animation * length_along_animation;
+                let animated_transform = self.camera.transform.matrix().mul(tc.matrix());
+                let test =  self.render_state.skinned_animation_library.loaded_animations.get_mut(&use_animation).as_mut().unwrap().calculate_joint_matrix(length_along_animation);
+                self.render_state.skinned_shader_pass.set_uniform(animated_transform, test);
+                self.render_state.skinned_shader_pass.buffer.set(self.render_state.skinned_animation_library.loaded_animations[&use_animation].model.as_slice()); 
+                self.render_state.skinned_shader_pass.draw(&self.render_state.model_shader);
             }
-            */
-
-
         }
+        
+        {
+            let human_health_component_system;
+            query_2!(ChampionComponent, HealthComponent, self.game_state, human_health_component_system);
+            for (_cc, hc) in human_health_component_system {
+                self.ui_render_state.configure_player_health_bar(hc.current_amount as f32 / 100.0);
+            }
+        }
+
+        
+        {
+            let attack_target_health_component_system;
+            query_2!(ChampionComponent, AttackStateComponent, self.game_state, attack_target_health_component_system);
+            for (_cc, asc) in attack_target_health_component_system {
+                if asc.is_attacking {
+                    let health_comp = self.game_state.borrow_component_vec::<HealthComponent>().unwrap();
+                    self.ui_render_state.configure_enemy_health_bar(health_comp[asc.current_target].unwrap().current_amount as f32 / 100.0);
+
+                }
+            }
+        }
+        self.ui_render_state.render_ui();
     
     }
 
@@ -248,7 +359,7 @@ impl Rift {
         }
     }
 
-    pub fn on_key_pressed(&mut self, ctx: &mut Context<AgmaClientApp>, key: event::KeyboardButton, is_repeat: bool) {
+    pub fn on_key_pressed(&mut self, ctx: &mut Context<AgmaClientApp>, key: event::KeyboardButton, _is_repeat: bool) {
 
         match key {
             KeyboardButton::Escape => ctx.request_stop(),
@@ -281,8 +392,8 @@ impl Rift {
         }
     }
 
-    pub fn on_cursor_delta(&mut self, _ctx: &mut Context<AgmaClientApp>, delta: storm::cgmath::Vector2<f32>, _focused: bool) {
-        self.camera.look(delta);
+    pub fn on_cursor_delta(&mut self, _ctx: &mut Context<AgmaClientApp>, _delta: storm::cgmath::Vector2<f32>, _focused: bool) {
+      //  self.camera.look(delta);
     }
 
     pub fn on_key_released(&mut self, _ctx: &mut Context<AgmaClientApp>, key: event::KeyboardButton) {

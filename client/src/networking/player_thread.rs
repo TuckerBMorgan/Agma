@@ -34,11 +34,10 @@ pub fn start_player_thread(server_address: String) -> (Receiver<UpdateWorldMessa
                     },
                     Err(_) => {
                         break;
-                    }                 
-                }    
+                    }
+                }
             }
             let to_server = recv_from_client.try_iter();
-
             for message in to_server {
                 let message = bitfield_rle::encode(message);
                 let _ = socket.send_to(&message, "127.0.0.1:34257");

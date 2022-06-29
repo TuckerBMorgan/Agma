@@ -1,4 +1,3 @@
-use cgmath::*;
 use std::collections::HashMap;
 
 use crate::*;
@@ -70,7 +69,8 @@ impl RuneSystem {
         }
     }
 
-    pub fn handle_move_runes(&mut self, mut movement_runes: Vec<Rune>, world: &mut World) {
+    pub fn handle_move_runes(&mut self, _movement_runes: Vec<Rune>, _world: &mut World) {
+        /*
         let movement_runes : Vec<MoveRune> = movement_runes.iter_mut().map(
             |x|
             match x {
@@ -83,7 +83,7 @@ impl RuneSystem {
             }
         ).collect();
 
-        let mut transforms = world.borrow_component_vec::<TransformComponent>().unwrap();
+        let mut transforms = world.borrow_component_vec::<PositionComponent>().unwrap();
 
         // Find all of the places we want to move objects to
         for rune in movement_runes.iter() {
@@ -96,6 +96,7 @@ impl RuneSystem {
                 None => {}
             }
         }
+        */
     }
 
     pub fn handle_damage_runes(&mut self, mut damage_runes: Vec<Rune>, world: &mut World) {
@@ -116,7 +117,7 @@ impl RuneSystem {
         for rune in damage_runes.iter() {
             let current_health = health_components.get_mut(rune.target);
             match current_health {
-                Some(mut current_health) => {
+                Some(current_health) => {
                     current_health.as_mut().unwrap().do_damage(rune.amount);
                 },
                 None => {}

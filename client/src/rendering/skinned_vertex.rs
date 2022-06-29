@@ -6,14 +6,14 @@ use storm::cgmath::*;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SkinnedVertex {
     pub vertices: Vector4<f32>,
-    pub joints: Vector4<u32>,
+    pub joints: Vector4<u16>,
     pub weights: Vector4<f32>
 }
 
 impl VertexDescriptor for SkinnedVertex {
     const INSTANCING: VertexInstancing = VertexInstancing::none();
     const ATTRIBUTES: &'static [VertexAttribute] = &[
-        VertexAttribute::new(3, VertexInputType::F32, VertexOutputType::F32),
+        VertexAttribute::new(4, VertexInputType::F32, VertexOutputType::F32),
         VertexAttribute::new(4, VertexInputType::U16, VertexOutputType::I32),
         VertexAttribute::new(4, VertexInputType::F32, VertexOutputType::F32),
     ];

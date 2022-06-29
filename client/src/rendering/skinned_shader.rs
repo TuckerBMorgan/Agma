@@ -1,6 +1,6 @@
 use storm::Context;
 use storm::graphics::{Buffer, std140,DrawMode, Shader, ShaderDescriptor,Uniform};
-use storm::math::PerspectiveCamera;
+
 use crate::rendering::SkinnedVertex;
 use storm::cgmath::Matrix4;
 use crate::AgmaClientApp;
@@ -62,7 +62,7 @@ pub struct SkinnedShaderPass {
 
 impl SkinnedShaderPass {
     pub fn new(ortho: Matrix4<f32>, ctx: &mut Context<AgmaClientApp>) -> SkinnedShaderPass {
-        let mut test = [Matrix4::zero();256];
+        let test = [Matrix4::zero();256];
         SkinnedShaderPass {
             uniform: Uniform::new(ctx, SkinnedUniform::new(ortho, test)),
             buffer: Buffer::new(ctx),

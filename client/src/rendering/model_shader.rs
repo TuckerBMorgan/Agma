@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use storm::Context;
 use storm::graphics::{Buffer, std140,DrawMode, Shader, ShaderDescriptor,Uniform};
 use storm::math::PerspectiveCamera;

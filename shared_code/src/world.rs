@@ -7,14 +7,24 @@ use crate::*;
 use cgmath::*;
 use crate::components::*;
 
-#[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
-struct Health(i32);
+/*
+pub trait Resource {
+    fn as_any(&self) -> &dyn std::any::Any;
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+}
 
+impl<T: Encode + Decode + Copy + Clone + 'static> Resource for RefCell<Vec<Option<T>>> {
+    // Same as before
+    fn as_any(&self) -> &dyn std::any::Any {
+        self as &dyn std::any::Any
+    }
 
-#[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
-struct MoveSpeed(f32);
-
-
+    // Same as before
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self as &mut dyn std::any::Any
+    }
+}
+*/
 pub trait ComponentVec {
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
@@ -63,6 +73,8 @@ impl<T: Encode + Decode + Copy + Clone + 'static> ComponentVec for RefCell<Vec<O
     }
 }
 
+type Builder = for<'r, 's> fn(&'r mut World, &'s [u8], usize);
+
 /// The World for the ECS
 pub struct World {
     /// What is the current simulation frame
@@ -72,7 +84,11 @@ pub struct World {
     /// vectors of each component
     component_vecs: Vec<Box<dyn ComponentVec>>,
     /// A mapping for if we should be replicating a particular component
-    should_replicate: Vec<bool>
+    should_replicate: Vec<bool>,
+
+    builder_functions: Vec<Builder>,
+
+   // resources: Vec<Box<dyn Resource>>
 }
 
 impl World {
@@ -81,7 +97,8 @@ impl World {
             frame_number: 0,
             entities_count: 0,
             component_vecs: vec![],
-            should_replicate: vec![]
+            should_replicate: vec![],
+            builder_functions: vec![]
         }
     }
 
@@ -110,44 +127,23 @@ impl World {
             let data_start = current_index + 9;
             let end_position = data_start + number_of_bytes;
             let range = data_start..end_position;
-            if bytes[current_index] == 0 {
-                let test = self.decode_component_vector_from_byte_array::<EntityComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
+            if bytes[range.clone()].len() > 0 {
+                self.builder_functions[bytes[current_index] as usize](self, &bytes[range], bytes[current_index] as usize);
             }
-            else if bytes[current_index] == 1 {
-                let test = self.decode_component_vector_from_byte_array::<TransformComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            else if bytes[current_index] == 2 {
-                let test = self.decode_component_vector_from_byte_array::<ChampionComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            else if bytes[current_index] == 3 {
-                let test = self.decode_component_vector_from_byte_array::<CharacterStateComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            else if bytes[current_index] == 4 {
-                let test = self.decode_component_vector_from_byte_array::<MinionComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            else if bytes[current_index] == 5 {
-                let test = self.decode_component_vector_from_byte_array::<TeamComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            else if bytes[current_index] == 6 {
-                let test = self.decode_component_vector_from_byte_array::<HealthComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            else if bytes[current_index] == 7 {
-                let test = self.decode_component_vector_from_byte_array::<RadiusComponent>(&bytes[range]);
-                self.component_vecs.push(Box::new(RefCell::new(test)));
-            }
-            
             current_index = end_position;
             if current_index >= bytes.len() {
                 return;
             }
         }
+    }
+
+    fn rebuild_component_array<ComponentType: Encode + Decode + Copy + Clone + 'static>(&mut self, byte_array: &[u8], index: usize) {
+        let test = self.decode_component_vector_from_byte_array::<ComponentType>(&byte_array);
+        //We are setting the number of entities we have
+        if index == 0 {
+            self.entities_count = test.len();
+        }
+        self.component_vecs[index] = Box::new(RefCell::new(test));
     }
 
     //TODO: rip this out, as it will clash with those things that use TeamComponent in a system
@@ -161,10 +157,10 @@ impl World {
         return a.team == b.team;
     }
 
-    pub fn entity_at_point(&self, location: Vector2<f32>) -> Option<usize> {
+    pub fn entity_at_point(&self, location: Vector2<i64>) -> Option<usize> {
         //There is no "height" in the game so we force callers of this function to call it
         //with a vector2, we store everything as Vector3 though, so we reconvert it
-        let location = Vector3::new(location.x, 0.0, location.y);
+        let location = Vector2::new(location.x, location.y);
         // 1. Create a list of circle that represent a character and their radius
         // 2. Compre the point where the player click against all of them
         // 3. If the player intersected with nothing, then find the location on the map 
@@ -172,21 +168,22 @@ impl World {
         // 4. if the player clicked an entity, return that entities ids
         // TODO: create a "RadiusComponent" to help speed up some of this work
         // TODO: build some form of BST to help speed this up even more, this could get REALLLLLY BAD
-        let test_radius = 100.0f32;
+        let test_radius = 100 as i64;
         let entity_transform_query;
-        query_2!(TransformComponent, EntityComponent, self, entity_transform_query);
-        let mut lowest_distance = std::f32::MAX;
+        query_2!(PositionComponent, EntityComponent, self, entity_transform_query);
+        let mut lowest_distance = std::i64::MAX;
         let mut the_entity_id = 0;
 
         for (transform, entity) in entity_transform_query {
-            let distance = (transform.position() - location).magnitude2();
+            let distance = (Vector2::new(transform.x, transform.y) - location).magnitude2();
+            let distance = distance as i64;
             if distance <= test_radius && distance < lowest_distance {
                 lowest_distance = distance;
                 the_entity_id = entity.id;
             }
         }
 
-        if lowest_distance != std::f32::MAX {
+        if lowest_distance != std::i64::MAX {
             return Some(the_entity_id);
         }
         return None;
@@ -195,7 +192,18 @@ impl World {
     /// allocate the space in the component_vec for a particular type of Component and then register it into the
     /// replication sytesm as well
     pub fn register_type<ComponentType: Encode + Decode + Copy + Clone + 'static>(&mut self, should_replicate: bool) {
-        let none : Vec<Option<ComponentType>> = vec![];
+        if should_replicate == true {
+            self.builder_functions.push(
+                World::rebuild_component_array::<ComponentType>
+            );
+        }
+
+        let mut none : Vec<Option<ComponentType>> = vec![];
+        
+        for _en in 0..self.entities_count {
+            none.push(None);
+        }
+
         self.component_vecs.push(Box::new(RefCell::new(none)));
         self.should_replicate.push(should_replicate);
     }
@@ -250,15 +258,23 @@ impl World {
         entity: usize,
         component: ComponentType,
     ) {
+
         for component_vec in self.component_vecs.iter_mut() {
             // The `downcast_mut` type here is changed to `RefCell<Vec<Option<ComponentType>>`
             if let Some(component_vec) = component_vec
                 .as_any_mut()
                 .downcast_mut::<RefCell<Vec<Option<ComponentType>>>>()
             {
+                let component_vec = component_vec.get_mut();
+                if component_vec.len() <  self.entities_count {
+                    let missing_entities = self.entities_count - component_vec.len();
+                    for _ in 0..missing_entities {
+                        component_vec.push(None);
+                    }
+                }
                 // add a `get_mut` here. Once again `get_mut` bypasses
                 // `RefCell`'s runtime checks if accessing through a `&mut` reference.
-                component_vec.get_mut()[entity] = Some(component);
+                component_vec[entity] = Some(component);
                 return;
             }
         }

@@ -12,5 +12,6 @@ layout(std140) uniform vertex {
 void main(){	
 	// Output position of the vertex, in clip space : MVP * position
 	v_uv = uv;
+
 	gl_Position =  MVP * vec4(vertexPosition_modelspace,1);
 }
