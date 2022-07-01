@@ -1,3 +1,4 @@
+use std::cmp;
 const RING_BUFFER_INTERNAL_STORAGE_SLOTS : usize = 32;
 
 pub struct RingBuffer<T> {
@@ -43,4 +44,10 @@ pub fn path_find(start_x: i64, start_y: i64, end_x: i64, end_y: i64) -> (i64, i6
     else {
         return (start_x + x_direction.signum(), start_y);
     }
+}
+
+
+pub fn game_distance_between_two_points(a_x: i64, a_y: i64, b_x: i64, b_y: i64) -> usize {
+    let distance : usize = cmp::max((a_x - b_x).abs(), (a_y - b_y).abs()) as usize;
+    return distance;
 }

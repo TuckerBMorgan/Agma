@@ -1,5 +1,6 @@
 use std::ops::Mul;
 use cgmath::*;
+use log::info;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub struct LazyTranslation {

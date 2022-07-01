@@ -88,7 +88,6 @@ impl PlayerConnection {
                 to_player_message.message_type = ToPlayerMessageType::UpdateWorld;
                 let encoded =  bincode::encode_to_vec(to_player_message, config).unwrap();
                 let encoded = bitfield_rle::encode(encoded);
-                info!("an update to this players world is {:?} bytes long", encoded.len());
                 let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
                 self.previous_game_state.add_new_data((frame_number, buffer));
             }

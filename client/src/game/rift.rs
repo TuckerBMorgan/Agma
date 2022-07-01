@@ -235,7 +235,18 @@ impl Rift {
                     }
                 }
                 else if asc.is_attacking {
-                    
+                    let direction_along_x = (asc.location_x - pc.x) as f32;
+                    let direction_along_y = (asc.location_y - pc.y) as f32;
+                    let moving_direction = Vector2::new(direction_along_x as f32, direction_along_y as f32).normalize();
+                    let mut desired = storm::cgmath::Deg::atan2(moving_direction.x, moving_direction.y).0;
+
+                    if desired > 360.0 {
+                        desired = desired % 360.0;
+                    }
+                    if desired < 0.0 {
+                        desired = 360.0 + desired;
+                    }
+                    tc.set_desired_rotation(desired);
                 }
                 else {
                     let player_x = pc.x as f32;

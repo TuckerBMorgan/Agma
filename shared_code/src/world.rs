@@ -308,6 +308,13 @@ impl World {
         }
         None
     }
+    /*
+    pub fn find_component<ComponentType: 'static>(
+        &self, entity_id: usize
+    ) -> Option<&mut ComponentType> {
+        //let mut component_vec = self.borrow_component_vec::<ComponentType>().as_mut().unwrap();
+        return self.borrow_component_vec::<ComponentType>().as_mut().unwrap()[entity_id].as_mut();
+    }*/
 
     /// Convert the world to a byte array
     pub fn to_byte_array(&mut self) -> Vec<u8> {

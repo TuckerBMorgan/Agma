@@ -2,6 +2,9 @@ use shared_code::*;
 use std::time::Duration;
 use std::thread::sleep;
 use bincode::*;
+use std::cmp;
+use std::collections::HashMap;
+
 
 use log::info;
 use log::LevelFilter;
@@ -23,6 +26,7 @@ fn main() {
     let mut connections = vec![PlayerConnection::new(String::from("192.0.0.1"))];
 
     let mut placed_characters = vec![GridSlot::Empty;GRID_SIZE * GRID_SIZE];
+    let mut entity_id_to_position_map = HashMap::new();
 
     let mut w = World::new();
     // put components you want replicated here
@@ -80,7 +84,7 @@ fn main() {
                 placed_characters[i] = GridSlot::Empty;
             }
 
-            
+            entity_id_to_position_map = HashMap::new();
             let entity_position_query;            
             query_3!(EntityComponent, PositionComponent, HealthComponent, w, entity_position_query);
             for (ec, pc, hc) in entity_position_query {
@@ -88,6 +92,7 @@ fn main() {
                     let effective_x = pc.x as usize + GRID_SIZE / 2;
                     let effective_y = pc.y as usize + GRID_SIZE / 2;
                     placed_characters[effective_x + effective_y * GRID_SIZE] = GridSlot::Character(ec.id);
+                    entity_id_to_position_map.insert(ec.id, (pc.x, pc.y));
                 }
             }
             
@@ -114,24 +119,31 @@ fn main() {
                 if input.is_none() {
                     continue;
                 }
+
                 let input = input.unwrap();
-                let input_x = input.x as i64;
-                let input_y = input.z as i64;
+                let input_x = input.x.round() as i64;
+                let input_y = input.z.round() as i64;
                 if input.button_down {                    
-                    let effective_x = input.x as usize + GRID_SIZE / 2;
-                    let effective_y = input.z as usize + GRID_SIZE / 2;
+                    let effective_x = input.x.round() as usize + GRID_SIZE / 2;
+                    let effective_y = input.z.round() as usize + GRID_SIZE / 2;
                     let clicked_index = effective_x + effective_y * GRID_SIZE;
+                    //If you click on "yourself" we don't do anything
                     if input_x != pc.x || input_y != pc.y {
                         if asc.is_attacking == false {
                             match placed_characters[clicked_index] {
                                 GridSlot::Character(id) => {
-                                    let distance = ((input_x - pc.x).abs() + (input_y - pc.y).abs()) as usize;
+                                    let distance : usize = cmp::max((input_x - pc.x).abs(), (input_y - pc.y).abs()) as usize;
                                     if distance <= asc.range {
-                                        asc.start_attacking(id);
+                                        asc.start_attacking(id, input_x, input_y);
                                         msc.is_moving = false;    
                                     }
+                                    else {
+                                        msc.start_attack_moving(id, asc.range);
+                                    }
                                 },_ => {
-                                    msc.start_moving(input_x, input_y);
+                                    if input_x != pc.x || input_y != pc.y {
+                                        msc.start_moving(input_x, input_y);
+                                    }
                                 }
                             }
                         }
@@ -142,9 +154,9 @@ fn main() {
 
         {
             let character_movement_query;
-            query_2!(MovementStateComponent, PositionComponent, w, character_movement_query);
-            for (msc, pc) in character_movement_query {
-                
+            query_3!(EntityComponent, MovementStateComponent, PositionComponent, w, character_movement_query);
+            for (ec, msc, pc) in character_movement_query {
+
                 if msc.current_move_speed < msc.move_speed {
                     msc.current_move_speed += 1;
                 }
@@ -153,12 +165,39 @@ fn main() {
                     msc.move_speed = msc.move_speed;
                 }
 
+                match msc.movement_type {
+                    MovementType::AttackMove(id, maximum_range) => {
+                        let (target_position_x, target_position_y) = entity_id_to_position_map[&id];
+                        if game_distance_between_two_points(pc.x, pc.y, target_position_x, target_position_y) <= maximum_range {
+                            msc.is_moving = false;
+                            let mut attack_state_component = w.borrow_component_vec::<AttackStateComponent>().unwrap()[id].unwrap();
+                            attack_state_component.start_attacking(id, target_position_x, target_position_y);
+                        }
+                        else {
+                            msc.destination_x = target_position_x;
+                            msc.destination_y = target_position_y;    
+                        }
+                    },
+                    _ => {
+                        
+                    }
+                }
+                
+
+
                 if msc.is_moving {
                     if msc.current_move_speed == msc.move_speed  {
                         msc.current_move_speed = 0;
                         if pc.x != msc.destination_x || pc.y != msc.destination_y {
-                            let x_update = (msc.destination_x - pc.x).signum();
-                            let y_update = (msc.destination_y - pc.y).signum();
+                            let mut x_update = msc.destination_x - pc.x;
+                            if x_update != 0 {
+                                x_update = x_update.signum();
+                            }
+
+                            let mut y_update = msc.destination_y - pc.y;
+                            if y_update != 0 {
+                                y_update = y_update.signum();
+                            }
 
                             pc.update_position(x_update, y_update);
                             if pc.x == msc.destination_x && pc.y == msc.destination_y {
@@ -193,6 +232,7 @@ fn main() {
         
 
         rune_system.resolve_world_state(&mut w);
+
         for connection in connections.iter_mut() {
             connection.update_player_with_new_game_state(w.to_byte_array(), w.frame_number);
         }
