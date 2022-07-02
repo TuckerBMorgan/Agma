@@ -4,14 +4,15 @@ use std::thread::sleep;
 use bincode::*;
 use std::cmp;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
-
-use log::info;
 use log::LevelFilter;
 
 mod components;
 pub use components::*;
 
+mod server_managers;
+pub use server_managers::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum GridSlot {
@@ -22,11 +23,16 @@ enum GridSlot {
 
 const GRID_SIZE : usize = 1000;
 fn main() {
-    let _ = simple_logging::log_to_file("server.log", LevelFilter::Info);
-    let mut connections = vec![PlayerConnection::new(String::from("192.0.0.1"))];
+    
+    let mut server_socket = ServerSocket::new();
+    let (from_handshake_thread, to_handshake_thread) = start_handshake_thread();
 
+    let _ = simple_logging::log_to_file("server.log", LevelFilter::Info);
+    let mut connections : HashMap<SocketAddr, PlayerConnection> = HashMap::new();
+    let mut client_id_to_socket_address : HashMap<usize, SocketAddr> = HashMap::new();
     let mut placed_characters = vec![GridSlot::Empty;GRID_SIZE * GRID_SIZE];
-    let mut entity_id_to_position_map = HashMap::new();
+    let mut entity_id_to_position_map;// = HashMap::new();
+
 
     let mut w = World::new();
     // put components you want replicated here
@@ -45,18 +51,6 @@ fn main() {
     w.register_type::<PlayerConnectionComponent>(false);
     let mut rune_system = RuneSystem::new();
 
-    for i in 0..1 {
-        let entity = w.new_entity();
-        w.add_component_to_entity(entity, PositionComponent::new(0, 0));
-        w.add_component_to_entity(entity, CharacterStateComponent::new());
-        w.add_component_to_entity(entity, ChampionComponent::new());
-        w.add_component_to_entity(entity, PlayerConnectionComponent::new(i));
-        w.add_component_to_entity(entity, TeamComponent::new(0));
-        w.add_component_to_entity(entity, HealthComponent::new(100));
-        w.add_component_to_entity(entity, RadiusComponent::new(1));
-        w.add_component_to_entity(entity, MovementStateComponent::new(12));
-        w.add_component_to_entity(entity, AttackStateComponent::new(30, 1, 30));
-    }
     
     for i in 0..2 {
         let entity = w.new_entity();
@@ -74,10 +68,32 @@ fn main() {
     loop {
 
         {
-            //Player Connection Input System
-            for connection in connections.iter_mut() {
-                connection.check_on_player();
+            //Handle new players connecting to the game
+            let join_requests = from_handshake_thread.try_iter();
+            for join_request in join_requests {
+                let client_id = connections.len();
+                let unique_port = 4560 + client_id as u16;
+                let socket = SocketAddr::new(join_request.socket_address.ip(), unique_port);
+                let foo = PlayerConnection::new(String::from("192.0.0.1"));
+                let entity = w.new_entity();
+                w.add_component_to_entity(entity, PositionComponent::new(0, 0));
+                w.add_component_to_entity(entity, CharacterStateComponent::new());
+                w.add_component_to_entity(entity, ChampionComponent::new(client_id as u8));
+                w.add_component_to_entity(entity, PlayerConnectionComponent::new(client_id));
+                w.add_component_to_entity(entity, TeamComponent::new(0));
+                w.add_component_to_entity(entity, HealthComponent::new(100));
+                w.add_component_to_entity(entity, RadiusComponent::new(1));
+                w.add_component_to_entity(entity, MovementStateComponent::new(12));
+                w.add_component_to_entity(entity, AttackStateComponent::new(30, 1, 30));
+
+                let _ = to_handshake_thread.send(PlayerConnectionInfo::new(join_request.stream_id, client_id as u8, unique_port));
+                connections.insert(socket, foo);
+                client_id_to_socket_address.insert(client_id, socket);
             }
+
+            // drain out socket and update the player connection info with the latest information
+            server_socket.check_on_players(&mut connections);
+
 
             //clear the grid so we can recalculate everything
             for i in 0..(GRID_SIZE * GRID_SIZE) {
@@ -99,7 +115,8 @@ fn main() {
             let player_connection_components;
             query_2!(PlayerConnectionComponent, ChampionComponent, w, player_connection_components);
             for (pcc, cc) in player_connection_components {
-                let player_connection = &connections[pcc.player_index];
+                let socket_address = client_id_to_socket_address[&pcc.player_index];
+                let player_connection = &connections[&socket_address];
                 if player_connection.desired_inputs.len() >= 16 {
                     for i in 0..16 {
                         cc.desired_inputs[i] = player_connection.desired_inputs[i];
@@ -141,9 +158,7 @@ fn main() {
                                         msc.start_attack_moving(id, asc.range);
                                     }
                                 },_ => {
-                                    if input_x != pc.x || input_y != pc.y {
-                                        msc.start_moving(input_x, input_y);
-                                    }
+                                    msc.start_moving(input_x, input_y);
                                 }
                             }
                         }
@@ -165,27 +180,27 @@ fn main() {
                     msc.move_speed = msc.move_speed;
                 }
 
-                match msc.movement_type {
-                    MovementType::AttackMove(id, maximum_range) => {
-                        let (target_position_x, target_position_y) = entity_id_to_position_map[&id];
-                        if game_distance_between_two_points(pc.x, pc.y, target_position_x, target_position_y) <= maximum_range {
-                            msc.is_moving = false;
-                            let mut attack_state_component = w.borrow_component_vec::<AttackStateComponent>().unwrap()[id].unwrap();
-                            attack_state_component.start_attacking(id, target_position_x, target_position_y);
-                        }
-                        else {
-                            msc.destination_x = target_position_x;
-                            msc.destination_y = target_position_y;    
-                        }
-                    },
-                    _ => {
-                        
-                    }
-                }
-                
-
-
                 if msc.is_moving {
+
+                    match msc.movement_type {
+                        MovementType::AttackMove(id, maximum_range) => {
+                            let (target_position_x, target_position_y) = entity_id_to_position_map[&id];
+                            if game_distance_between_two_points(pc.x, pc.y, target_position_x, target_position_y) <= maximum_range {
+                                msc.is_moving = false;
+                                if let Some(asc) = w.borrow_component_vec::<AttackStateComponent>().as_mut().unwrap().get_mut(ec.id) {
+                                    asc.as_mut().unwrap().start_attacking(id, target_position_x, target_position_y);
+                                }
+                            }
+                            else {
+                                msc.destination_x = target_position_x;
+                                msc.destination_y = target_position_y;
+                            }
+                        },
+                        _ => {
+                            
+                        }
+                    }
+
                     if msc.current_move_speed == msc.move_speed  {
                         msc.current_move_speed = 0;
                         if pc.x != msc.destination_x || pc.y != msc.destination_y {
@@ -229,12 +244,23 @@ fn main() {
             }
         } 
         
+        {
+            let dead_things_query;
+            query_2!(EntityComponent, HealthComponent, w, dead_things_query);
+            for (ec, hc) in dead_things_query {
+                if hc.current_amount ==  0 {
+                    ec.in_use = false;
+                }
+            }
+        }
         
 
         rune_system.resolve_world_state(&mut w);
 
-        for connection in connections.iter_mut() {
-            connection.update_player_with_new_game_state(w.to_byte_array(), w.frame_number);
+        w.cleanup_world();
+
+        for (_key, connection) in connections.iter_mut() {
+            connection.update_player_with_new_game_state(w.to_byte_array(), w.frame_number, &mut server_socket.socket);
         }
         sleep(Duration::from_millis(14));
     }

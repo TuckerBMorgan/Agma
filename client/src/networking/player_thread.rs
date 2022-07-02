@@ -6,8 +6,9 @@ use std::thread::sleep;
 use std::thread;
 use std::net::UdpSocket;
 use bincode::*;
+use std::net::SocketAddr;
 
-pub fn start_player_thread(server_address: String) -> (Receiver<UpdateWorldMessage>, Sender<Vec<u8>>) {
+pub fn start_player_thread(server_address: SocketAddr) -> (Receiver<UpdateWorldMessage>, Sender<Vec<u8>>) {
     let (send_to_client, recv_from_server) : (Sender<UpdateWorldMessage>, Receiver<UpdateWorldMessage>) = channel();
     let (send_to_server, recv_from_client) : (Sender<Vec<u8>>, Receiver<Vec<u8>>) = channel();
     let config = config::standard();

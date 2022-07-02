@@ -6,15 +6,15 @@ use crate::*;
 /// champion they are, and what inputs the server is aware of at the moment
 #[derive(PartialEq, Debug, Copy, Clone, Encode, Decode)]
 pub struct ChampionComponent {
-    pub champion_index: u32,
+    pub champion_index: u8,
     pub desired_inputs: [MouseState;16],
     pub current_input_to_use: usize
 }
 
 impl ChampionComponent {
-    pub fn new() -> ChampionComponent {
+    pub fn new(champion_index: u8) -> ChampionComponent {
         ChampionComponent {
-            champion_index: 0,
+            champion_index,
             desired_inputs: [MouseState::default();16],
             current_input_to_use: 0
         }

@@ -30,6 +30,7 @@ pub trait ComponentVec {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
     fn push_none(&mut self);
     fn to_byte_array(&mut self) -> Vec<u8>;
+    fn place_none(&mut self, index: usize);
 }
 
 
@@ -71,6 +72,10 @@ impl<T: Encode + Decode + Copy + Clone + 'static> ComponentVec for RefCell<Vec<O
         }
         big_chunky_array
     }
+
+    fn place_none(&mut self, index: usize) {
+        self.get_mut()[index] = None;
+    }
 }
 
 type Builder = for<'r, 's> fn(&'r mut World, &'s [u8], usize);
@@ -87,6 +92,7 @@ pub struct World {
     should_replicate: Vec<bool>,
 
     builder_functions: Vec<Builder>,
+    entities_to_delete: Vec<usize>
 
    // resources: Vec<Box<dyn Resource>>
 }
@@ -98,7 +104,8 @@ impl World {
             entities_count: 0,
             component_vecs: vec![],
             should_replicate: vec![],
-            builder_functions: vec![]
+            builder_functions: vec![],
+            entities_to_delete: vec![]
         }
     }
 
@@ -220,6 +227,28 @@ impl World {
         self.add_component_to_entity(entity_id, EntityComponent::new(entity_id));
         self.entities_count += 1;
         entity_id
+    }
+
+    //Will remove all of the components associated with a single entity
+    //Including the EntityComponent which will need to be reallocated later
+    fn remove_entity(&mut self, id: usize) {
+        for component_vec in self.component_vecs.iter_mut() {
+            component_vec.place_none(id);
+        }
+    }
+
+    //Will store off which entity you want to remove, don't remove entities within a frame
+    pub fn delete_entity(&mut self, entity_id: usize) {
+        self.entities_to_delete.push(entity_id);
+    }
+
+    //This will actually remove any entities that have been marked for removal
+    pub fn cleanup_world(&mut self) {
+        for entity_id in self.entities_to_delete.clone() {
+            self.remove_entity(entity_id);
+        }
+
+        self.entities_to_delete = vec![];
     }
 
     /// given a byte vector recreate the vector of a particular kind of component

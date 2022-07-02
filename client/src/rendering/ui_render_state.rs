@@ -55,7 +55,7 @@ impl UIRenderState {
     }
 
     pub fn render_ui(&mut self) {
-        self.health_bar_buffer.set(&[self.health_bar_sprite, self.enemy_health_bar_sprite]);
+        self.health_bar_buffer.set_data(&[self.health_bar_sprite, self.enemy_health_bar_sprite]);
         self.sprite_shader.draw(
             &self.transform_uniform,
             &self.default_texture,

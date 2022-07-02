@@ -168,3 +168,53 @@ impl AwkFrameMessage {
     }
 }
 
+#[derive(Encode, Decode, PartialEq, Debug)]
+pub enum HandshakeMessageType {
+    Hello,
+    HelloAwk,
+    Join,
+    GameSettings(u8, u16)
+}
+
+impl HandshakeMessageType {
+    pub fn to_u8(&self) -> Vec<u8> {
+        match self {
+            HandshakeMessageType::Hello => {
+                return vec![0];
+            }
+            HandshakeMessageType::HelloAwk => {
+                return vec![1];
+            }
+            HandshakeMessageType::Join => {
+                return vec![2];
+            }
+            HandshakeMessageType::GameSettings(client_id, port) => {
+                let port_as_bytes = port.to_be_bytes();
+                return vec![3, *client_id, port_as_bytes[0], port_as_bytes[1]];
+            }
+        }
+    }
+
+    pub fn from_u8(bytes: [u8;4]) -> HandshakeMessageType {
+        match bytes[0] {
+            0 => {
+                return HandshakeMessageType::Hello;
+            }
+            1 => {
+                return HandshakeMessageType::HelloAwk;
+            }
+            2 => {
+                return HandshakeMessageType::Join;
+            }
+            3 => {
+                let mut port_address = [0 as u8; 2];
+                port_address[0] = bytes[2];
+                port_address[1] = bytes[3];
+                return HandshakeMessageType::GameSettings(bytes[1], u16::from_be_bytes(port_address));
+            },
+            _ => {
+                panic!("Dont support a messages with a header value of {:?}", bytes[0]);
+            }
+        }
+    }
+}

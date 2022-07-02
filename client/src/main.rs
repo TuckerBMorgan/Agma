@@ -3,7 +3,7 @@ use core::cmp::min;
 use storm::color::RGBA8;
 use storm::graphics::{ClearMode, DisplayMode, Vsync,Texture,TextureFiltering, WindowSettings, DepthTest};
 
-
+use std::sync::mpsc::{Receiver};
 use storm::{event::*, Context, App, start, event, cgmath::*};
 use storm::graphics::{Buffer};
 
@@ -17,18 +17,34 @@ use game::*;
 mod networking;
 mod rendering;
 
+pub use networking::*;
+
 static TEXTURE_A: &[u8] = include_bytes!("resources/images/floor.png");
 
+pub enum AppState {
+    WorkingOnConnection,
+    Game
+}
+
+pub struct Preamble {
+    server_connection_info: Receiver<ServerConnectionInfo>
+}
 
 pub struct AgmaClientApp {
-    rift: Rift
+    app_state: AppState,
+    rift: Option<Rift>,
+    preamble: Preamble
 }
 
 impl App for AgmaClientApp {
     fn new(ctx: &mut Context<Self>) -> Self {
         ctx.wait_periodic(Some(Duration::from_secs_f32(1.0 / 144.0)));
+        let handshake = preform_handshake(String::from("127.0.0.1:3345"));
+        let preamble = Preamble{server_connection_info: handshake};
         AgmaClientApp {
-            rift: Rift::new(ctx)
+            app_state: AppState::Game,
+            rift: None,//Rift::new(ctx)
+            preamble
         }
     }
 
@@ -37,7 +53,21 @@ impl App for AgmaClientApp {
     }
 
     fn on_update(&mut self, ctx: &mut Context<Self>, delta: f32) {
-        self.rift.update(ctx, delta);    
+        match self.app_state {
+            AppState::WorkingOnConnection => {
+                let maybe = self.preamble.server_connection_info.try_iter();
+                for thing in maybe {
+                    self.rift = Some(Rift::new(ctx, thing.client_id, thing.port));
+                    self.app_state = AppState::Game;
+                    break;
+                }
+            },
+            AppState::Game => {
+                self.rift.as_mut().unwrap().update(ctx, delta);
+            }
+        }
+
+
     }
 
     fn on_cursor_pressed(
@@ -48,7 +78,7 @@ impl App for AgmaClientApp {
         normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
 
-        self.rift.on_cursor_pressed(ctx, button, physical_pos, normalized_pos);
+        self.rift.as_mut().unwrap().on_cursor_pressed(ctx, button, physical_pos, normalized_pos);
     }
 
     fn on_cursor_released(
@@ -58,23 +88,22 @@ impl App for AgmaClientApp {
         physical_pos: storm::cgmath::Vector2<f32>,
         normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
-        self.rift.on_cursor_released(ctx, button, physical_pos, normalized_pos);
+        self.rift.as_mut().unwrap().on_cursor_released(ctx, button, physical_pos, normalized_pos);
     }
 
     fn on_cursor_delta(&mut self, ctx: &mut Context<AgmaClientApp>, delta: storm::cgmath::Vector2<f32>, focused: bool) {
-        self.rift.on_cursor_delta(ctx, delta, focused);
+        self.rift.as_mut().unwrap().on_cursor_delta(ctx, delta, focused);
     }
-
 
     fn on_key_pressed(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton, is_repeat: bool) {
         if is_repeat {
             return;
         }
-        self.rift.on_key_pressed(ctx, key, is_repeat);
+        self.rift.as_mut().unwrap().on_key_pressed(ctx, key, is_repeat);
     }
 
     fn on_key_released(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton) {
-        self.rift.on_key_released(ctx, key);
+        self.rift.as_mut().unwrap().on_key_released(ctx, key);
     }
 }
 

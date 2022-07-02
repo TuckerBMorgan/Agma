@@ -5,6 +5,7 @@ use crate::rendering::*;
 use bincode::{config};
 use std::ops::Mul;
 use std::collections::HashSet;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 
 pub struct Rift {
@@ -22,12 +23,13 @@ pub struct Rift {
     render_state: RenderState,
     ui_render_state: UIRenderState,
     animation_timer: f32,
-    last_frames_entities: HashSet<usize>
+    last_frames_entities: HashSet<usize>,
+    client_id: u8
 }
 
 impl Rift {
-    pub fn new(ctx: &mut Context<AgmaClientApp>) -> Rift {
-        let (recv_from_server, send_to_server) = start_player_thread(String::from("127.0.0.1:34255"));
+    pub fn new(ctx: &mut Context<AgmaClientApp>, client_id: u8, port: u16) -> Rift {
+        let (recv_from_server, send_to_server) = start_player_thread(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port));
 
         //TODO: have this be generated based on a macro????
         let mut w = World::new();
@@ -59,7 +61,8 @@ impl Rift {
             render_state: RenderState::new(ctx),
             ui_render_state: UIRenderState::new(ctx),
             animation_timer: 0.0,
-            last_frames_entities: HashSet::new()
+            last_frames_entities: HashSet::new(),
+            client_id
         }
     }
 
@@ -261,8 +264,10 @@ impl Rift {
         let camera_position_system;
         {
             query_2!(ChampionComponent, TransformComponent, self.game_state, camera_position_system);
-            for (_cc, tc) in camera_position_system {
-                self.camera.update_player_position(tc.position());
+            for (cc, tc) in camera_position_system {
+                if cc.champion_index == self.client_id {
+                    self.camera.update_player_position(tc.position());
+                }
             }
         }
 
@@ -271,15 +276,18 @@ impl Rift {
     }
     
     pub fn render_world(&mut self, delta: f32) {
-        self.render_state.floor_buffer.set(&self.render_state.floor.as_slice());
+        self.render_state.floor_buffer.set_data(&self.render_state.floor.as_slice());
         self.render_state.texture_shader.draw(&self.camera.model_view_projection_uniform(&Matrix4::from_scale(100.0)), &self.render_state.floor_texture, &self.render_state.floor_buffer);
 
         {
             //Player rendering system
             let entity_animation_component;
-            query_3!(TransformComponent, MovementStateComponent, AttackStateComponent, self.game_state, entity_animation_component);
+            query_4!(EntityComponent, TransformComponent, MovementStateComponent, AttackStateComponent, self.game_state, entity_animation_component);
 
-            for (tc, msc, asc) in entity_animation_component {
+            for (ec, tc, msc, asc) in entity_animation_component {
+                if ec.in_use == false {
+                    continue;
+                }
                 let mut use_animation = String::from("Idle");
                 let mut length_along_animation = 0.0f32;
                 if msc.is_moving {
@@ -300,7 +308,7 @@ impl Rift {
                 let animated_transform = self.camera.transform.matrix().mul(tc.matrix());
                 let test =  self.render_state.skinned_animation_library.loaded_animations.get_mut(&use_animation).as_mut().unwrap().calculate_joint_matrix(length_along_animation);
                 self.render_state.skinned_shader_pass.set_uniform(animated_transform, test);
-                self.render_state.skinned_shader_pass.buffer.set(self.render_state.skinned_animation_library.loaded_animations[&use_animation].model.as_slice()); 
+                self.render_state.skinned_shader_pass.buffer.set_data(self.render_state.skinned_animation_library.loaded_animations[&use_animation].model.as_slice()); 
                 self.render_state.skinned_shader_pass.draw(&self.render_state.model_shader);
             }
         }
@@ -308,8 +316,10 @@ impl Rift {
         {
             let human_health_component_system;
             query_2!(ChampionComponent, HealthComponent, self.game_state, human_health_component_system);
-            for (_cc, hc) in human_health_component_system {
-                self.ui_render_state.configure_player_health_bar(hc.current_amount as f32 / 100.0);
+            for (cc, hc) in human_health_component_system {
+                if cc.champion_index == self.client_id { 
+                    self.ui_render_state.configure_player_health_bar(hc.current_amount as f32 / 100.0);
+                }
             }
         }
 
@@ -317,11 +327,13 @@ impl Rift {
         {
             let attack_target_health_component_system;
             query_2!(ChampionComponent, AttackStateComponent, self.game_state, attack_target_health_component_system);
-            for (_cc, asc) in attack_target_health_component_system {
-                if asc.is_attacking {
-                    let health_comp = self.game_state.borrow_component_vec::<HealthComponent>().unwrap();
-                    self.ui_render_state.configure_enemy_health_bar(health_comp[asc.current_target].unwrap().current_amount as f32 / 100.0);
+            for (cc, asc) in attack_target_health_component_system {
+                if cc.champion_index == self.client_id {
+                    if asc.is_attacking {
+                        let health_comp = self.game_state.borrow_component_vec::<HealthComponent>().unwrap();
+                        self.ui_render_state.configure_enemy_health_bar(health_comp[asc.current_target].unwrap().current_amount as f32 / 100.0);
 
+                    }
                 }
             }
         }

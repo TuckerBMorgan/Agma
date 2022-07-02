@@ -1,12 +1,73 @@
 use crate::*;
-use std::net::{UdpSocket};
+use std::net::{UdpSocket, SocketAddr};
+
+
+pub struct ServerSocket {
+    pub socket: UdpSocket
+}
+
+impl ServerSocket {
+    pub fn new() -> ServerSocket {
+        let udp_socket = UdpSocket::bind("127.0.0.1:34257").unwrap();
+        let _ = udp_socket.set_nonblocking(true);
+        ServerSocket {
+            socket: udp_socket
+        }
+    }
+    
+    /// Main function for looking into the state of the socket for the player
+    /// this will update what the player has send us
+    /// best to be called as often as possible to help keep the UDP buffer
+    /// as small as possible
+    pub fn check_on_players(&mut self, player_connections: &mut HashMap<SocketAddr, PlayerConnection>) {
+        let mut buf = [0; 65507];
+        let config = config::standard();
+        loop {
+            //We want to drain the input buffer for each player
+            match self.socket.recv_from(&mut buf) {
+                Ok((amt, src)) => {
+                    if amt == 0 {
+                        return;
+                    }
+                    let mut player_connection = player_connections.get_mut(&src).unwrap();
+                    let buf = &mut buf[..amt];
+                    let buf = bitfield_rle::decode(&buf[..]).unwrap();
+                    let message_type = PlayerToServerMessage::from_u8(buf[0]);
+                    match message_type {
+                        PlayerToServerMessage::AwkFrameMessage => {
+                            let (msg, _len) : (AwkFrameMessage, usize) = bincode::decode_from_slice(&buf[1..], config).unwrap();
+                            if msg.frame_number > player_connection.last_awked_game_state {
+                                player_connection.last_awked_game_state = msg.frame_number;
+                            }
+                        },
+                        PlayerToServerMessage::KeyboardAction => {
+                            let (msg, _len) : (KeyboardActionMessage, usize) = bincode::decode_from_slice(&buf[1..], config).unwrap();
+                            if msg.input_messages.len() <= 16 {
+                                player_connection.inputs = msg.input_messages;
+                            }
+                        },
+                        PlayerToServerMessage::MouseAction => {
+                            let (msg, _len) : (MouseActionMessage, usize) = bincode::decode_from_slice(&buf[1..], config).unwrap();
+                            if msg.destinations.len() <= 16 {
+                                player_connection.desired_inputs = msg.destinations;
+                            }
+                        }
+                    }
+                }
+                Err(_e) => {return;/*println!("failed {:?}", e)*/}
+            }
+        }
+    }
+    
+}
+
 
 /// A component used to tie a character to a UDP socket
 /// so it can be used to drive that characters movement
 #[derive(Encode, Decode, PartialEq, Debug, Copy, Clone)]
 pub struct PlayerConnectionComponent {
     /// The player index, this is a 1-1 mapping to an array of PlayerConnections
-    pub player_index: usize
+    pub player_index: usize,
 }
 
 impl PlayerConnectionComponent {
@@ -46,8 +107,6 @@ pub struct PlayerConnection {
     pub previous_game_state: RingBuffer<(usize, Vec<u8>)>,
     /// the number of the last frame this player has told us they have heard
     pub last_awked_game_state: usize,
-    /// the actual socket
-    pub udp_socket: UdpSocket,
     /// the inputs we have heard, but have yet to move over to the main thread
     pub inputs: Vec<u8>,
     pub desired_inputs: Vec<MouseState>
@@ -55,12 +114,9 @@ pub struct PlayerConnection {
 
 impl PlayerConnection {
     pub fn new(_ip: String) -> PlayerConnection {
-        let udp_socket = UdpSocket::bind("127.0.0.1:34257").unwrap();
-        let _ = udp_socket.set_nonblocking(true);
         PlayerConnection {
             previous_game_state: RingBuffer::new(),
             last_awked_game_state: 0,
-            udp_socket,
             inputs: vec![],
             desired_inputs: vec![]
         }
@@ -69,7 +125,7 @@ impl PlayerConnection {
     /// Given a encoded game state, and which frame it is based on send the player
     /// either the whole buffer(if the player does not have that frame)
     /// or a delta state from a frame we know the player has, so the player can rebuild the state later
-    pub fn update_player_with_new_game_state(&mut self, buffer: Vec<u8>, frame_number: usize) {
+    pub fn update_player_with_new_game_state(&mut self, buffer: Vec<u8>, frame_number: usize, udp_socket: &mut UdpSocket) {
         let config = config::standard();
         if self.previous_game_state.next_open_slot != 0 && self.last_awked_game_state != 0 {
             let mut index = 0;
@@ -88,14 +144,14 @@ impl PlayerConnection {
                 to_player_message.message_type = ToPlayerMessageType::UpdateWorld;
                 let encoded =  bincode::encode_to_vec(to_player_message, config).unwrap();
                 let encoded = bitfield_rle::encode(encoded);
-                let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
+                let _ = udp_socket.send_to(&encoded, "127.0.0.1:34255");
                 self.previous_game_state.add_new_data((frame_number, buffer));
             }
             else {
                 let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
                 let encoded =  bincode::encode_to_vec(to_player_message, config).unwrap();
                 let encoded = bitfield_rle::encode(encoded);
-                let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
+                let _ = udp_socket.send_to(&encoded, "127.0.0.1:34255");
                 self.previous_game_state.add_new_data((frame_number, buffer));   
             }
         }
@@ -103,52 +159,10 @@ impl PlayerConnection {
             let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
             let encoded =  bincode::encode_to_vec(to_player_message, config).unwrap();
             let encoded = bitfield_rle::encode(encoded);
-            let _ = self.udp_socket.send_to(&encoded, "127.0.0.1:34255");
+            let _ = udp_socket.send_to(&encoded, "127.0.0.1:34255");
             self.previous_game_state.add_new_data((frame_number, buffer));
         }
     }
 
-    /// Main function for looking into the state of the socket for the player
-    /// this will update what the player has send us
-    /// best to be called as often as possible to help keep the UDP buffer
-    /// as small as possible
-    pub fn check_on_player(&mut self) {
-        let mut buf = [0; 65507];
-        let config = config::standard();
-        loop {
-            //We want to drain the input buffer for each player
-            match self.udp_socket.recv_from(&mut buf) {
-                Ok((amt, _src)) => {
-                    if amt == 0 {
-                        return;
-                    }
 
-                    let buf = &mut buf[..amt];
-                    let buf = bitfield_rle::decode(&buf[..]).unwrap();
-                    let message_type = PlayerToServerMessage::from_u8(buf[0]);
-                    match message_type {
-                        PlayerToServerMessage::AwkFrameMessage => {
-                            let (msg, _len) : (AwkFrameMessage, usize) = bincode::decode_from_slice(&buf[1..], config).unwrap();
-                            if msg.frame_number > self.last_awked_game_state {
-                                self.last_awked_game_state = msg.frame_number;
-                            }
-                        },
-                        PlayerToServerMessage::KeyboardAction => {
-                            let (msg, _len) : (KeyboardActionMessage, usize) = bincode::decode_from_slice(&buf[1..], config).unwrap();
-                            if msg.input_messages.len() <= 16 {
-                                self.inputs = msg.input_messages;
-                            }
-                        },
-                        PlayerToServerMessage::MouseAction => {
-                            let (msg, _len) : (MouseActionMessage, usize) = bincode::decode_from_slice(&buf[1..], config).unwrap();
-                            if msg.destinations.len() <= 16 {
-                                self.desired_inputs = msg.destinations;
-                            }
-                        }
-                    }
-                }
-                Err(_e) => {return;/*println!("failed {:?}", e)*/}
-            }
-        }
-    }
 }

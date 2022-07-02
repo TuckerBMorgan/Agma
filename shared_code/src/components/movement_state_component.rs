@@ -30,6 +30,10 @@ impl MovementStateComponent {
         }
     }
 
+    pub fn stop_moving(&mut self, ) {
+
+    }
+
     pub fn start_moving(&mut self, destination_x: i64, destination_y: i64) {
         self.is_moving = true;
         self.destination_x = destination_x;
