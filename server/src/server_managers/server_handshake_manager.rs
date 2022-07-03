@@ -76,44 +76,50 @@ pub fn start_handshake_thread() -> (Receiver<PlayerJoinRequest>, Sender<PlayerCo
 
     let mut server_handshake = ServerHandshakeManager::new();
     thread::spawn(move||{
+        println!("Starting the handshake thread");
         loop {
-        let mut new_connections = vec![];
-        //Consume new connections
-        for stream in server_handshake.listener.incoming() {
-            match stream {
-                Ok(s) => {
-                    new_connections.push(s);
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // wait until network socket is ready, typically implemented
-                    // via platform-specific APIs such as epoll or IOCP
-                    continue;
-                }
-                Err(e) => panic!("encountered IO error: {e}"),
-            }
-        }
+            let mut new_connections = vec![];
+            //Consume new connections
+            for stream in server_handshake.listener.incoming() {
+                match stream {
+                    Ok(s) => {
+                        new_connections.push(s);
 
-        for connection in new_connections {
-            server_handshake.add_new_stream(connection);
-        }
-        //TODO: Change this to work off of a struct that wraps the connection
-        //That way we can insure that we only escalate and handle handshake in a stepwise manner
-        //and also insure that we only handle a single handshake per IP
-        //drain exsisting connections for messages
-        for (index, connection) in  server_handshake.live_connections.iter_mut() {
-            //1500 bytes in the MTU of TCP
-            let mut data = [0 as u8; 4]; // using 50 byte buffer
-            
-            while match connection.read(&mut data) {
-                Ok(size) => {
-                    if size == 4 {
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        // wait until network socket is ready, typically implemented
+                        // via platform-specific APIs such as epoll or IOCP
+                        break;
+                    }
+                    Err(e) => panic!("encountered IO error: {e}"),
+                }
+            }
+
+            for connection in new_connections {
+                server_handshake.add_new_stream(connection);
+                println!("A new player has connected");
+            }
+
+            //TODO: Change this to work off of a struct that wraps the connection
+            //That way we can insure that we only escalate and handle handshake in a stepwise manner
+            //and also insure that we only handle a single handshake per IP
+            //drain exsisting connections for messages
+            for (index, connection) in  server_handshake.live_connections.iter_mut() {
+                //1500 bytes in the MTU of TCP
+                let mut data = [0 as u8; 4]; // using 50 byte buffer
+                
+                while match connection.read(&mut data) {
+                    Ok(size) => {
                         let message = HandshakeMessageType::from_u8(data);
                         match message {
                             HandshakeMessageType::Hello => {
+                                println!("A Player sad hello");
                                 //Let the player know that we have heard them
-                                let _ = connection.write(&HandshakeMessageType::HelloAwk.to_u8());
+                                let hmm = connection.write(&HandshakeMessageType::HelloAwk.to_u8());
+                                println!("{:?}", hmm);
                             },
                             HandshakeMessageType::Join => {
+                                println!("A Player asked to join");
                                 // We will now need to send a message to the game server and ask it
                                 // for a client id and a port
                                 let _ = to_game_thread.send(PlayerJoinRequest::new(*index, connection.local_addr().unwrap()));
@@ -122,31 +128,31 @@ pub fn start_handshake_thread() -> (Receiver<PlayerJoinRequest>, Sender<PlayerCo
                                 println!("Server only handles Hello and Join messages");
                             }
                         }
+
+                        true
+                    },
+                    Err(_) => {
+
+                        false
                     }
-                    true
-                },
-                Err(_) => {
+                    
+                } {}
+            } 
+            //send any messages from the server
 
-                    false
-                }
-                
-            } {}
-        } 
-        //send any messages from the server
-
-        let message_iter = recv_from_client.try_iter();
-        for message in message_iter {
-            let connection = server_handshake.live_connections.get_mut(&message.stream_id);
-            match connection {
-                Some(stream) => {
-                    let _ = stream.write(&HandshakeMessageType::GameSettings(message.client_id, message.port).to_u8());
-                },
-                None => {
+            let message_iter = recv_from_client.try_iter();
+            for message in message_iter {
+                let connection = server_handshake.live_connections.get_mut(&message.stream_id);
+                match connection {
+                    Some(stream) => {
+                        let _ = stream.write(&HandshakeMessageType::GameSettings(message.client_id, message.port).to_u8());
+                    },
+                    None => {
+                    }
                 }
             }
-        }
-        //TODO: allow for a tcp to be dropped at some point
-        //no need to have the connection open if a player is already playing
+            //TODO: allow for a tcp to be dropped at some point
+            //no need to have the connection open if a player is already playing
         }
     });
 

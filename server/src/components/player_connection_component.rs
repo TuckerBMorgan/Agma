@@ -109,15 +109,17 @@ pub struct PlayerConnection {
     pub last_awked_game_state: usize,
     /// the inputs we have heard, but have yet to move over to the main thread
     pub inputs: Vec<u8>,
+    pub socket_address: SocketAddr,
     pub desired_inputs: Vec<MouseState>
 }
 
 impl PlayerConnection {
-    pub fn new(_ip: String) -> PlayerConnection {
+    pub fn new(socket_address: SocketAddr) -> PlayerConnection {
         PlayerConnection {
             previous_game_state: RingBuffer::new(),
             last_awked_game_state: 0,
             inputs: vec![],
+            socket_address,
             desired_inputs: vec![]
         }
     }
@@ -144,14 +146,14 @@ impl PlayerConnection {
                 to_player_message.message_type = ToPlayerMessageType::UpdateWorld;
                 let encoded =  bincode::encode_to_vec(to_player_message, config).unwrap();
                 let encoded = bitfield_rle::encode(encoded);
-                let _ = udp_socket.send_to(&encoded, "127.0.0.1:34255");
+                let _ = udp_socket.send_to(&encoded, self.socket_address);
                 self.previous_game_state.add_new_data((frame_number, buffer));
             }
             else {
                 let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
                 let encoded =  bincode::encode_to_vec(to_player_message, config).unwrap();
                 let encoded = bitfield_rle::encode(encoded);
-                let _ = udp_socket.send_to(&encoded, "127.0.0.1:34255");
+                let _ = udp_socket.send_to(&encoded, self.socket_address);
                 self.previous_game_state.add_new_data((frame_number, buffer));   
             }
         }
@@ -159,7 +161,7 @@ impl PlayerConnection {
             let to_player_message = UpdateWorldMessage::new(frame_number, self.last_awked_game_state, buffer.clone());
             let encoded =  bincode::encode_to_vec(to_player_message, config).unwrap();
             let encoded = bitfield_rle::encode(encoded);
-            let _ = udp_socket.send_to(&encoded, "127.0.0.1:34255");
+            let _ = udp_socket.send_to(&encoded, self.socket_address);
             self.previous_game_state.add_new_data((frame_number, buffer));
         }
     }

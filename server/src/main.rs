@@ -74,7 +74,7 @@ fn main() {
                 let client_id = connections.len();
                 let unique_port = 4560 + client_id as u16;
                 let socket = SocketAddr::new(join_request.socket_address.ip(), unique_port);
-                let foo = PlayerConnection::new(String::from("192.0.0.1"));
+                let foo = PlayerConnection::new(socket);
                 let entity = w.new_entity();
                 w.add_component_to_entity(entity, PositionComponent::new(0, 0));
                 w.add_component_to_entity(entity, CharacterStateComponent::new());

@@ -22,16 +22,21 @@ impl ServerConnectionInfo {
 pub fn preform_handshake(server_ip: String) -> Receiver<ServerConnectionInfo> {
     let (send_to_client, recv_from_server) : (Sender<ServerConnectionInfo>, Receiver<ServerConnectionInfo>) = channel();
     thread::spawn(move||{
-        let mut stream = TcpStream::connect(server_ip.clone()).unwrap();
+        let mut stream = TcpStream::connect("127.0.0.1:34258").unwrap();
         println!("Successfully connected to server {:?}", server_ip);
         let msg = HandshakeMessageType::Hello;
         stream.write(&msg.to_u8()).unwrap();
         println!("Sent Hello, awaiting reply...");
         loop {
-            let mut data = [0 as u8; 4]; // using 6 byte buffer
-            match stream.read_exact(&mut data) {
+            let mut data = [0 as u8; 50]; // using 6 byte buffer
+            match stream.read(&mut data) {
                 Ok(_) => {
-                    let message = HandshakeMessageType::from_u8(data);
+                    let mut test_data = [0; 4];
+                    test_data[0] = data[0];
+                    test_data[1] = data[1];
+                    test_data[2] = data[2];
+                    test_data[3] = data[3];
+                    let message = HandshakeMessageType::from_u8(test_data);
                     match message {
                         HandshakeMessageType::HelloAwk => {
                             let join_message = HandshakeMessageType::Join;

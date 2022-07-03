@@ -39,10 +39,10 @@ pub struct AgmaClientApp {
 impl App for AgmaClientApp {
     fn new(ctx: &mut Context<Self>) -> Self {
         ctx.wait_periodic(Some(Duration::from_secs_f32(1.0 / 144.0)));
-        let handshake = preform_handshake(String::from("127.0.0.1:3345"));
+        let handshake = preform_handshake(String::from("127.0.0.1:34258"));
         let preamble = Preamble{server_connection_info: handshake};
         AgmaClientApp {
-            app_state: AppState::Game,
+            app_state: AppState::WorkingOnConnection,
             rift: None,//Rift::new(ctx)
             preamble
         }
@@ -77,8 +77,15 @@ impl App for AgmaClientApp {
         physical_pos: storm::cgmath::Vector2<f32>,
         normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
+        match self.app_state {
+            AppState::Game => {
+                self.rift.as_mut().unwrap().on_cursor_pressed(ctx, button, physical_pos, normalized_pos);
+            }
+            _ => {
 
-        self.rift.as_mut().unwrap().on_cursor_pressed(ctx, button, physical_pos, normalized_pos);
+            }
+        }
+
     }
 
     fn on_cursor_released(
@@ -88,22 +95,55 @@ impl App for AgmaClientApp {
         physical_pos: storm::cgmath::Vector2<f32>,
         normalized_pos: storm::cgmath::Vector2<f32>,
     ) {
-        self.rift.as_mut().unwrap().on_cursor_released(ctx, button, physical_pos, normalized_pos);
+        match self.app_state {
+
+            AppState::Game => {
+                self.rift.as_mut().unwrap().on_cursor_released(ctx, button, physical_pos, normalized_pos);
+            }
+            _ => {
+                
+            }
+        }
+
     }
 
     fn on_cursor_delta(&mut self, ctx: &mut Context<AgmaClientApp>, delta: storm::cgmath::Vector2<f32>, focused: bool) {
-        self.rift.as_mut().unwrap().on_cursor_delta(ctx, delta, focused);
+        match self.app_state {
+            AppState::Game => {
+                self.rift.as_mut().unwrap().on_cursor_delta(ctx, delta, focused);
+            }
+            _ => {
+                
+            }
+        }
+
     }
 
     fn on_key_pressed(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton, is_repeat: bool) {
         if is_repeat {
             return;
         }
-        self.rift.as_mut().unwrap().on_key_pressed(ctx, key, is_repeat);
+        match self.app_state {
+            AppState::Game => {
+                self.rift.as_mut().unwrap().on_key_pressed(ctx, key, is_repeat);
+            }
+            _ => {
+                
+            }
+        }
+
     }
 
     fn on_key_released(&mut self, ctx: &mut Context<Self>, key: event::KeyboardButton) {
-        self.rift.as_mut().unwrap().on_key_released(ctx, key);
+        match self.app_state {
+            AppState::Game => {
+                self.rift.as_mut().unwrap().on_key_released(ctx, key);
+            }
+            _ => {
+                
+            }
+        }
+
     }
 }
 
