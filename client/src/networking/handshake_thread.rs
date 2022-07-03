@@ -4,6 +4,7 @@ use std::thread;
 use std::net::{TcpStream};
 use std::io::{Read, Write};
 use shared_code::*;
+use std::net::SocketAddr;
 
 pub struct ServerConnectionInfo {
     pub client_id: u8,
@@ -19,10 +20,10 @@ impl ServerConnectionInfo {
     }
 }
 
-pub fn preform_handshake(server_ip: String) -> Receiver<ServerConnectionInfo> {
+pub fn preform_handshake(server_ip: SocketAddr) -> Receiver<ServerConnectionInfo> {
     let (send_to_client, recv_from_server) : (Sender<ServerConnectionInfo>, Receiver<ServerConnectionInfo>) = channel();
     thread::spawn(move||{
-        let mut stream = TcpStream::connect("127.0.0.1:34258").unwrap();
+        let mut stream = TcpStream::connect(server_ip).unwrap();
         println!("Successfully connected to server {:?}", server_ip);
         let msg = HandshakeMessageType::Hello;
         stream.write(&msg.to_u8()).unwrap();

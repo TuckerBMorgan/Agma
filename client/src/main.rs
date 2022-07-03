@@ -10,7 +10,7 @@ use storm::graphics::{Buffer};
 use std::time::Duration;
 
 use log::LevelFilter;
-
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 mod game;
 use game::*;
 
@@ -39,7 +39,8 @@ pub struct AgmaClientApp {
 impl App for AgmaClientApp {
     fn new(ctx: &mut Context<Self>) -> Self {
         ctx.wait_periodic(Some(Duration::from_secs_f32(1.0 / 144.0)));
-        let handshake = preform_handshake(String::from("127.0.0.1:34258"));
+        
+        let handshake = preform_handshake(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(24, 19, 122, 147)), 34258));
         let preamble = Preamble{server_connection_info: handshake};
         AgmaClientApp {
             app_state: AppState::WorkingOnConnection,

@@ -5,7 +5,7 @@ use std::thread;
 use std::net::{TcpListener, TcpStream};
 use std::io::{Read, Write};
 use bincode::{Decode, Encode};
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use shared_code::*;
 use std::collections::HashMap;
@@ -18,7 +18,7 @@ pub struct ServerHandshakeManager {
 
 impl ServerHandshakeManager {
     pub fn new() -> ServerHandshakeManager {
-        let listener = TcpListener::bind("127.0.0.1:34258").unwrap();
+        let listener = TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 34258)).unwrap();
         listener.set_nonblocking(true).expect("Cannot set non-blocking");
         ServerHandshakeManager {
             listener,

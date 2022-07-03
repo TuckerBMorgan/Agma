@@ -29,7 +29,8 @@ pub struct Rift {
 
 impl Rift {
     pub fn new(ctx: &mut Context<AgmaClientApp>, client_id: u8, port: u16) -> Rift {
-        let (recv_from_server, send_to_server) = start_player_thread(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port));
+        //TODO: this up address needs to be where the server is
+        let (recv_from_server, send_to_server) = start_player_thread(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(24, 19, 122, 147)), port));
 
         //TODO: have this be generated based on a macro????
         let mut w = World::new();
