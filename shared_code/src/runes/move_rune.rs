@@ -4,14 +4,16 @@ use cgmath::*;
 #[derive(Copy, Clone, Debug)]
 pub struct MoveRune {
     pub entity: usize,
-    pub desired_amount: Vector3<f32>
+    pub offset_x: i64,
+    pub offset_y: i64
 }
 
 impl MoveRune {
-    pub fn new(entity: usize, desired_amount: Vector3<f32>) -> MoveRune {
+    pub fn new(entity: usize, offset_x: i64, offset_y: i64) -> MoveRune {
         MoveRune {
             entity,
-            desired_amount
+            offset_x,
+            offset_y
         }
     }
 }

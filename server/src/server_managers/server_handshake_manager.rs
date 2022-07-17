@@ -109,7 +109,7 @@ pub fn start_handshake_thread() -> (Receiver<PlayerJoinRequest>, Sender<PlayerCo
                 let mut data = [0 as u8; 4]; // using 50 byte buffer
                 
                 while match connection.read(&mut data) {
-                    Ok(size) => {
+                    Ok(_size) => {
                         let message = HandshakeMessageType::from_u8(data);
                         match message {
                             HandshakeMessageType::Hello => {

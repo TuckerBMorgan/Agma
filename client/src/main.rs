@@ -39,8 +39,7 @@ pub struct AgmaClientApp {
 impl App for AgmaClientApp {
     fn new(ctx: &mut Context<Self>) -> Self {
         ctx.wait_periodic(Some(Duration::from_secs_f32(1.0 / 144.0)));
-        
-        let handshake = preform_handshake(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(24, 19, 122, 147)), 34258));
+        let handshake = preform_handshake(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 20)), 34258));
         let preamble = Preamble{server_connection_info: handshake};
         AgmaClientApp {
             app_state: AppState::WorkingOnConnection,
@@ -58,7 +57,7 @@ impl App for AgmaClientApp {
             AppState::WorkingOnConnection => {
                 let maybe = self.preamble.server_connection_info.try_iter();
                 for thing in maybe {
-                    self.rift = Some(Rift::new(ctx, thing.client_id, thing.port));
+                    self.rift = Some(Rift::new(ctx, thing.client_id, 34259));
                     self.app_state = AppState::Game;
                     break;
                 }

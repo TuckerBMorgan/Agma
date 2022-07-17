@@ -30,23 +30,10 @@ pub struct Rift {
 impl Rift {
     pub fn new(ctx: &mut Context<AgmaClientApp>, client_id: u8, port: u16) -> Rift {
         //TODO: this up address needs to be where the server is
-        let (recv_from_server, send_to_server) = start_player_thread(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(24, 19, 122, 147)), port));
+        let (recv_from_server, send_to_server) = start_player_thread(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 0, 20)), port));
 
-        //TODO: have this be generated based on a macro????
-        let mut w = World::new();
-        // put components you want replicated here
-        w.register_type::<EntityComponent>(true);
-        w.register_type::<PositionComponent>(true);
-        w.register_type::<ChampionComponent>(true);
-        w.register_type::<CharacterStateComponent>(true);
-        w.register_type::<MinionComponent>(true);
-        w.register_type::<TeamComponent>(true);
-        w.register_type::<HealthComponent>(true);
-        w.register_type::<RadiusComponent>(true);
-        w.register_type::<MovementStateComponent>(true);
-        w.register_type::<AttackStateComponent>(true);
-        w.register_type::<TransformComponent>(false);
-
+        let w = make_basic_world();
+        
         Rift {
             encoded_world_states: RingBuffer::new(),            
             game_state: w,
@@ -208,40 +195,28 @@ impl Rift {
         
 
         {
+            
             let entity_transform_system;
-            query_4!(AttackStateComponent, PositionComponent, MovementStateComponent, TransformComponent, self.game_state, entity_transform_system);
-            for (asc, pc, msc, tc) in entity_transform_system {
+            query_2!( PositionComponent, TransformComponent, self.game_state, entity_transform_system);
+            for (pc,  tc) in entity_transform_system {
+                let player_x = pc.x as f32;
+                let player_y = pc.y as f32;
+                tc.set_desired_translation(Vector3::new(player_x, 0.0, player_y));
+                //TODO: handle direction
+                /*
                 if msc.is_moving {
 
-                    let direction_along_x = pc.x as f32 - tc.position().x;
-                    let direction_along_y = pc.y as f32 - tc.position().z;
+                let direction_along_x = pc.x as f32 - tc.position().x;
+                let direction_along_y = pc.y as f32 - tc.position().z;
 
-                    let moving_direction = Vector2::new(direction_along_x as f32, direction_along_y as f32).normalize();
+                let moving_direction = Vector2::new(direction_along_x as f32, direction_along_y as f32).normalize();
 
-                    let player_x = pc.x as f32;
-                    //let player_x = player_x + (msc.current_move_speed as f32 / msc.move_speed as f32) * direction_along_x.signum() as f32;
-                    let player_y = pc.y as f32;
-                    //let player_y = player_y + (msc.current_move_speed as f32 / msc.move_speed as f32) * direction_along_y.signum() as f32;
-
-                    if (moving_direction.x != 0.0 || moving_direction.y != 0.0) && (tc.translation.desired_translation.x != pc.x as f32 || tc.translation.desired_translation.z != pc.y as f32) {
-                        tc.set_desired_translation(Vector3::new(player_x, 0.0, player_y));
-                        let mut desired = storm::cgmath::Deg::atan2(moving_direction.x, moving_direction.y).0;
-
-                        if desired > 360.0 {
-                            desired = desired % 360.0;
-                        }
-                        if desired < 0.0 {
-                            desired = 360.0 + desired;
-                        }
+                let player_x = pc.x as f32;
+                let player_y = pc.y as f32;
 
 
-                        tc.set_desired_rotation(desired);
-                    }
-                }
-                else if asc.is_attacking {
-                    let direction_along_x = (asc.location_x - pc.x) as f32;
-                    let direction_along_y = (asc.location_y - pc.y) as f32;
-                    let moving_direction = Vector2::new(direction_along_x as f32, direction_along_y as f32).normalize();
+                if (moving_direction.x != 0.0 || moving_direction.y != 0.0) && (tc.translation.desired_translation.x != pc.x as f32 || tc.translation.desired_translation.z != pc.y as f32) {
+                    tc.set_desired_translation(Vector3::new(player_x, 0.0, player_y));
                     let mut desired = storm::cgmath::Deg::atan2(moving_direction.x, moving_direction.y).0;
 
                     if desired > 360.0 {
@@ -250,16 +225,15 @@ impl Rift {
                     if desired < 0.0 {
                         desired = 360.0 + desired;
                     }
+
+
                     tc.set_desired_rotation(desired);
                 }
-                else {
-                    let player_x = pc.x as f32;
-                    let player_y = pc.y as f32;
-                    tc.set_desired_translation(Vector3::new(player_x, 0.0, player_y));
-                }
 
+                */
                 tc.update_transform();
             }
+            
         }
 
         let camera_position_system;
@@ -283,24 +257,21 @@ impl Rift {
         {
             //Player rendering system
             let entity_animation_component;
-            query_4!(EntityComponent, TransformComponent, MovementStateComponent, AttackStateComponent, self.game_state, entity_animation_component);
+            query_2!(EntityComponent, TransformComponent, self.game_state, entity_animation_component);
 
-            for (ec, tc, msc, asc) in entity_animation_component {
+            for (ec, tc) in entity_animation_component {
                 if ec.in_use == false {
                     continue;
                 }
                 let mut use_animation = String::from("Idle");
                 let mut length_along_animation = 0.0f32;
-                if msc.is_moving {
+
+                //TODO: fiddle with this number to something better
+                if  tc.get_translation_offset_magnitude_squared() > 0.01f32 {
                     use_animation = String::from("Running");
-                    length_along_animation = self.animation_timer;
                     self.animation_timer += delta;
                 }
-                else if asc.is_attacking {
-                    use_animation = String::from("Attack");
-                    length_along_animation = asc.current_channel as f32 / asc.channel_timer as f32;
-                }
-                
+
                 if self.animation_timer > self.render_state.skinned_animation_library.loaded_animations[&use_animation].length_of_animation {
                     self.animation_timer = 0.0;
                 }
@@ -323,21 +294,7 @@ impl Rift {
                 }
             }
         }
-
-        
-        {
-            let attack_target_health_component_system;
-            query_2!(ChampionComponent, AttackStateComponent, self.game_state, attack_target_health_component_system);
-            for (cc, asc) in attack_target_health_component_system {
-                if cc.champion_index == self.client_id {
-                    if asc.is_attacking {
-                        let health_comp = self.game_state.borrow_component_vec::<HealthComponent>().unwrap();
-                        self.ui_render_state.configure_enemy_health_bar(health_comp[asc.current_target].unwrap().current_amount as f32 / 100.0);
-
-                    }
-                }
-            }
-        }
+    
         self.ui_render_state.render_ui();
     
     }

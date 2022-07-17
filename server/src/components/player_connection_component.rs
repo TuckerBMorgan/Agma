@@ -8,7 +8,7 @@ pub struct ServerSocket {
 
 impl ServerSocket {
     pub fn new() -> ServerSocket {
-        let udp_socket = UdpSocket::bind("127.0.0.1:34257").unwrap();
+        let udp_socket = UdpSocket::bind("0.0.0.0:34259").unwrap();
         let _ = udp_socket.set_nonblocking(true);
         ServerSocket {
             socket: udp_socket
@@ -29,6 +29,7 @@ impl ServerSocket {
                     if amt == 0 {
                         return;
                     }
+
                     let mut player_connection = player_connections.get_mut(&src).unwrap();
                     let buf = &mut buf[..amt];
                     let buf = bitfield_rle::decode(&buf[..]).unwrap();

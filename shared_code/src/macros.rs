@@ -1,4 +1,13 @@
 #[macro_export]
+macro_rules! query_1 {
+    ($first:ty, $world:expr, $query_holder: ident) => {
+        let mut first_component = $world.borrow_component_vec::<$first>().unwrap();
+        let zip = first_component.iter_mut();
+        $query_holder = zip.filter_map(|f|Some(f.as_mut()?));
+    }
+}
+
+#[macro_export]
 macro_rules! query_2 {
     ($first:ty, $second:ty, $world:expr, $query_holder: ident) => {
         let mut first_component = $world.borrow_component_vec::<$first>().unwrap();

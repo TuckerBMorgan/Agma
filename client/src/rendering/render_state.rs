@@ -12,7 +12,6 @@ pub struct RenderState {
     pub model_shader: SkinnedShader,
 }
 
-
 impl RenderState {
     pub fn new(ctx: &mut Context<AgmaClientApp>) -> RenderState {
         let mut skinned_animation_library = AnimationLibrary::new();

@@ -9,12 +9,11 @@ use bincode::*;
 use std::net::SocketAddr;
 
 pub fn start_player_thread(server_address: SocketAddr) -> (Receiver<UpdateWorldMessage>, Sender<Vec<u8>>) {
-    println!("{:?}", server_address);
     let (send_to_client, recv_from_server) : (Sender<UpdateWorldMessage>, Receiver<UpdateWorldMessage>) = channel();
     let (send_to_server, recv_from_client) : (Sender<Vec<u8>>, Receiver<Vec<u8>>) = channel();
     let config = config::standard();
     thread::spawn(move||{
-        let socket =  UdpSocket::bind("127.0.0.1:1122").unwrap();
+        let socket =  UdpSocket::bind("0.0.0.0:4560").unwrap();
         //We want to have this be non blocking, so we can alternate between
         //looking for messages from the client to sent up
         //and looking for message down from the server

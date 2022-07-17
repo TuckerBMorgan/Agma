@@ -120,6 +120,10 @@ impl TransformComponent {
         return self.translation.current_translation;
     }
 
+    pub fn get_translation_offset_magnitude_squared(&self) -> f32 {
+        return (self.translation.current_translation - self.translation.desired_translation).magnitude2();
+    }
+
     pub fn set_desired_translation(&mut self, desired_translation: Vector3<f32>) {
         self.translation.desired_translation = desired_translation;
         self.dirty = true;

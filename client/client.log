@@ -1,10 +1,57 @@
-[00:00:00.000] (b34) INFO   Using the provided logger.
-[00:00:00.179] (b34) INFO   Created window.
-[00:00:00.180] (b34) TRACE  MAX_TEXTURE_SIZE: 32768
-[00:00:00.195] (b34) TRACE  Window resized: Physical(Vector2 [1904.0, 990.0]) Logical(Vector2 [1904.0, 990.0])
-[00:00:00.195] (b34) TRACE  Window resized: Physical(Vector2 [1280.0, 1024.0]) Logical(Vector2 [1280.0, 1024.0])
-[00:00:00.268] (b34) TRACE  Configured vertex client::rendering::skinned_vertex::SkinnedVertex: Size 40, Stride: 40
-[00:00:00.275] (b34) TRACE  Configured vertex client::rendering::skinned_vertex::SkinnedVertex: Size 40, Stride: 40
-[00:00:00.276] (b34) TRACE  Configured vertex client::rendering::textured_vertex::TexturedVertex: Size 20, Stride: 20
-[00:00:00.287] (b34) TRACE  Configured vertex storm::graphics::shaders::sprite::data::Sprite: Size 30, Stride: 32
-[00:00:01.200] (b34) TRACE  Event::Update   :  133 /    1086 tps |  920644 ns
+[00:00:00.000] (9c8) INFO   Using the provided logger.
+[00:00:00.395] (9c8) INFO   Created window.
+[00:00:00.396] (9c8) TRACE  MAX_TEXTURE_SIZE: 32768
+[00:00:00.410] (9c8) TRACE  Window resized: Physical(Vector2 [1904.0, 990.0]) Logical(Vector2 [1904.0, 990.0])
+[00:00:00.410] (9c8) TRACE  Window resized: Physical(Vector2 [1280.0, 1024.0]) Logical(Vector2 [1280.0, 1024.0])
+[00:00:00.500] (9c8) TRACE  Configured vertex client::rendering::skinned_vertex::SkinnedVertex: Size 40, Stride: 40
+[00:00:00.598] (9c8) TRACE  Configured vertex client::rendering::skinned_vertex::SkinnedVertex: Size 40, Stride: 40
+[00:00:00.599] (9c8) TRACE  Configured vertex client::rendering::textured_vertex::TexturedVertex: Size 20, Stride: 20
+[00:00:00.623] (9c8) TRACE  Configured vertex storm::graphics::shaders::sprite::data::Sprite: Size 30, Stride: 32
+[00:00:01.411] (9c8) TRACE  Event::Update   :  100 /     109 tps | 9127076 ns
+[00:00:02.415] (9c8) TRACE  Event::Update   :  134 /     145 tps | 6885942 ns
+[00:00:03.419] (9c8) TRACE  Event::Update   :  129 /     141 tps | 7076690 ns
+[00:00:04.427] (9c8) TRACE  Event::Update   :  129 /     141 tps | 7059925 ns
+[00:00:05.434] (9c8) TRACE  Event::Update   :  125 /     139 tps | 7172501 ns
+[00:00:06.434] (9c8) TRACE  Event::Update   :  126 /     142 tps | 6999464 ns
+[00:00:07.442] (9c8) TRACE  Event::Update   :  124 /     142 tps | 7041587 ns
+[00:00:08.449] (9c8) TRACE  Event::Update   :  122 /     137 tps | 7276960 ns
+[00:00:09.449] (9c8) TRACE  Event::Update   :  119 /     138 tps | 7210737 ns
+[00:00:10.450] (9c8) TRACE  Event::Update   :  117 /     138 tps | 7232401 ns
+[00:00:11.457] (9c8) TRACE  Event::Update   :  120 /     139 tps | 7167065 ns
+[00:00:12.463] (9c8) TRACE  Event::Update   :  119 /     139 tps | 7162778 ns
+[00:00:13.464] (9c8) TRACE  Event::Update   :  116 /     137 tps | 7249954 ns
+[00:00:14.471] (9c8) TRACE  Event::Update   :  126 /     140 tps | 7107004 ns
+[00:00:15.477] (9c8) TRACE  Event::Update   :  118 /     137 tps | 7250336 ns
+[00:00:16.479] (9c8) TRACE  Event::Update   :  122 /     139 tps | 7172185 ns
+[00:00:17.486] (9c8) TRACE  Event::Update   :  119 /     137 tps | 7248617 ns
+[00:00:18.491] (9c8) TRACE  Event::Update   :  123 /     141 tps | 7064341 ns
+[00:00:19.492] (9c8) TRACE  Event::Update   :  123 /     139 tps | 7150062 ns
+[00:00:20.498] (9c8) TRACE  Event::Update   :  119 /     140 tps | 7142056 ns
+[00:00:21.500] (9c8) TRACE  Event::Update   :  118 /     138 tps | 7206576 ns
+[00:00:22.504] (9c8) TRACE  Event::Update   :  118 /     139 tps | 7153043 ns
+[00:00:23.505] (9c8) TRACE  Event::Update   :  118 /     139 tps | 7151887 ns
+[00:00:24.510] (9c8) TRACE  Event::Update   :  121 /     139 tps | 7175528 ns
+[00:00:25.513] (9c8) TRACE  Event::Update   :  118 /     139 tps | 7165214 ns
+[00:00:26.515] (9c8) TRACE  Event::Update   :  123 /     144 tps | 6904296 ns
+[00:00:27.515] (9c8) TRACE  Event::Update   :  130 /     144 tps | 6922010 ns
+[00:00:28.519] (9c8) TRACE  Event::Update   :  127 /     146 tps | 6815339 ns
+[00:00:29.524] (9c8) TRACE  Event::Update   :  124 /     142 tps | 7017637 ns
+[00:00:30.531] (9c8) TRACE  Event::Update   :  128 /     144 tps | 6926192 ns
+[00:00:31.531] (9c8) TRACE  Event::Update   :  131 /     147 tps | 6775354 ns
+[00:00:32.538] (9c8) TRACE  Event::Update   :  128 /     145 tps | 6865261 ns
+[00:00:33.540] (9c8) TRACE  Event::Update   :  125 /     141 tps | 7078373 ns
+[00:00:34.542] (9c8) TRACE  Event::Update   :  117 /     139 tps | 7174671 ns
+[00:00:35.550] (9c8) TRACE  Event::Update   :  121 /     138 tps | 7217850 ns
+[00:00:36.550] (9c8) TRACE  Event::Update   :  120 /     139 tps | 7177896 ns
+[00:00:37.554] (9c8) TRACE  Event::Update   :  120 /     138 tps | 7208858 ns
+[00:00:38.558] (9c8) TRACE  Event::Update   :  118 /     139 tps | 7176560 ns
+[00:00:39.563] (9c8) TRACE  Event::Update   :  124 /     140 tps | 7115262 ns
+[00:00:40.568] (9c8) TRACE  Event::Update   :  131 /     140 tps | 7114547 ns
+[00:00:41.574] (9c8) TRACE  Event::Update   :  131 /     140 tps | 7122496 ns
+[00:00:42.578] (9c8) TRACE  Event::Update   :  127 /     140 tps | 7113715 ns
+[00:00:43.582] (9c8) TRACE  Event::Update   :  122 /     138 tps | 7198834 ns
+[00:00:44.592] (9c8) TRACE  Event::Update   :  118 /     138 tps | 7194346 ns
+[00:00:45.592] (9c8) TRACE  Event::Update   :  116 /     138 tps | 7206093 ns
+[00:00:46.593] (9c8) TRACE  Event::Update   :  118 /     139 tps | 7182466 ns
+[00:00:47.596] (9c8) TRACE  Event::Update   :  121 /     139 tps | 7144770 ns
+[00:00:48.670] (9c8) TRACE  Event::Update   :  132 /     150 tps | 6641272 ns

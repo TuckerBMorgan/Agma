@@ -2,10 +2,9 @@ use shared_code::*;
 use std::time::Duration;
 use std::thread::sleep;
 use bincode::*;
-use std::cmp;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-
+use rand::Rng;
 use log::LevelFilter;
 
 mod components;
@@ -34,23 +33,15 @@ fn main() {
     let mut entity_id_to_position_map;// = HashMap::new();
 
 
-    let mut w = World::new();
-    // put components you want replicated here
-    w.register_type::<EntityComponent>(true);
-    w.register_type::<PositionComponent>(true);
-    w.register_type::<ChampionComponent>(true);
-    w.register_type::<CharacterStateComponent>(true);
-    w.register_type::<MinionComponent>(true);
-    w.register_type::<TeamComponent>(true);
-    w.register_type::<HealthComponent>(true);
-    w.register_type::<RadiusComponent>(true);
-    w.register_type::<MovementStateComponent>(true);
-    w.register_type::<AttackStateComponent>(true);
-
+    let mut w = make_basic_world();
     // Put components you don't want replciated here
     w.register_type::<PlayerConnectionComponent>(false);
     let mut rune_system = RuneSystem::new();
-
+    let ability_function_library = load_basic_functions();
+    let mut ability_instance_library = AbilityInstanceLibrary::new();
+    let mut ability_target_functions = AbilityTargetFunctionLibrary::new();
+    let target_is_position_function = ability_target_functions.add_function(target_is_position);
+    let mut champions : HashMap<usize, Champion> = HashMap::new();
     
     for i in 0..2 {
         let entity = w.new_entity();
@@ -60,22 +51,29 @@ fn main() {
         w.add_component_to_entity(entity, TeamComponent::new(1));
         w.add_component_to_entity(entity, HealthComponent::new(100));
         w.add_component_to_entity(entity, RadiusComponent::new(1));
-        w.add_component_to_entity(entity, MovementStateComponent::new(1));
-        w.add_component_to_entity(entity, AttackStateComponent::new(30, 1, 240));
+        w.add_component_to_entity(entity, ZomebieControllerComponent::new());
+        let movement_ability = AbilityInstance::new(0, 12, BASIC_MOVEMENT_ABILITY_FUNCTION_ID, target_is_position_function, 10000);
+        let autoattack_ability = AbilityInstance::new(30, 10, BASIC_MOVEMENT_ABILITY_FUNCTION_ID, target_is_position_function, 1);
+        
+        let movement_ability_id = ability_instance_library.add_new_ability_instance(movement_ability);
+        let autoattack_ability_id = ability_instance_library.add_new_ability_instance(autoattack_ability);
+        w.add_component_to_entity(entity, AbilityComponent::new([movement_ability_id, autoattack_ability_id, NULL_ABILITY_VALUE, NULL_ABILITY_VALUE]));
     }
-    
 
     loop {
-
         {
             //Handle new players connecting to the game
             let join_requests = from_handshake_thread.try_iter();
             for join_request in join_requests {
+                //TODO: turn this into a function I can call
                 let client_id = connections.len();
                 let unique_port = 4560 + client_id as u16;
                 let socket = SocketAddr::new(join_request.socket_address.ip(), unique_port);
                 let foo = PlayerConnection::new(socket);
                 let entity = w.new_entity();
+
+                let champion = Champion::new(client_id as u8);
+                champions.insert(client_id, champion);
                 w.add_component_to_entity(entity, PositionComponent::new(0, 0));
                 w.add_component_to_entity(entity, CharacterStateComponent::new());
                 w.add_component_to_entity(entity, ChampionComponent::new(client_id as u8));
@@ -83,8 +81,13 @@ fn main() {
                 w.add_component_to_entity(entity, TeamComponent::new(0));
                 w.add_component_to_entity(entity, HealthComponent::new(100));
                 w.add_component_to_entity(entity, RadiusComponent::new(1));
-                w.add_component_to_entity(entity, MovementStateComponent::new(12));
-                w.add_component_to_entity(entity, AttackStateComponent::new(30, 1, 30));
+
+                let movement_ability = AbilityInstance::new(0, 12, BASIC_MOVEMENT_ABILITY_FUNCTION_ID, target_is_position_function, 10000);
+                let autoattack_ability = AbilityInstance::new(30, 10, AUTOATTACK_ABILITY_FUNCTION_ID, target_is_position_function, 1);
+                
+                let movement_ability_id = ability_instance_library.add_new_ability_instance(movement_ability);
+                let autoattack_ability_id = ability_instance_library.add_new_ability_instance(autoattack_ability);
+                w.add_component_to_entity(entity, AbilityComponent::new([movement_ability_id, autoattack_ability_id, NULL_ABILITY_VALUE, NULL_ABILITY_VALUE]));
 
                 let _ = to_handshake_thread.send(PlayerConnectionInfo::new(join_request.stream_id, client_id as u8, unique_port));
                 connections.insert(socket, foo);
@@ -118,132 +121,194 @@ fn main() {
                 let socket_address = client_id_to_socket_address[&pcc.player_index];
                 let player_connection = &connections[&socket_address];
                 if player_connection.desired_inputs.len() >= 16 {
+                    let mut champion = champions.get_mut(&(cc.champion_index as usize)).unwrap();
                     for i in 0..16 {
-                        cc.desired_inputs[i] = player_connection.desired_inputs[i];
+                        champion.desired_inputs[i] = player_connection.desired_inputs[i];
                     }
-                    cc.current_input_to_use = 0;
+                    champion.current_input_to_use = 0;
                 }
             }
         }
 
-
         {
-            let player_movement_query;
-            query_4!(ChampionComponent, MovementStateComponent, PositionComponent, AttackStateComponent, w, player_movement_query);
-            for (cc, msc, pc, asc) in player_movement_query {
-
-                let input = cc.get_current_input();
+            let target_request_query;
+            query_2!(EntityComponent, ChampionComponent, w, target_request_query);
+            for (ec, cc) in target_request_query {
+                let mut champion = champions.get_mut(&(cc.champion_index as usize)).unwrap();
+                let input = champion.get_current_input();
                 if input.is_none() {
                     continue;
                 }
 
                 let input = input.unwrap();
-                let input_x = input.x.round() as i64;
-                let input_y = input.z.round() as i64;
-                if input.button_down {                    
+                if input.button_down {
+                    //TODO: I hate all of this 
+                    let input_x = input.x.round() as i64;
+                    let input_y = input.z.round() as i64;
                     let effective_x = input.x.round() as usize + GRID_SIZE / 2;
                     let effective_y = input.z.round() as usize + GRID_SIZE / 2;
                     let clicked_index = effective_x + effective_y * GRID_SIZE;
-                    //If you click on "yourself" we don't do anything
-                    if input_x != pc.x || input_y != pc.y {
-                        if asc.is_attacking == false {
-                            match placed_characters[clicked_index] {
-                                GridSlot::Character(id) => {
-                                    let distance : usize = cmp::max((input_x - pc.x).abs(), (input_y - pc.y).abs()) as usize;
-                                    if distance <= asc.range {
-                                        asc.start_attacking(id, input_x, input_y);
-                                        msc.is_moving = false;    
-                                    }
-                                    else {
-                                        msc.start_attack_moving(id, asc.range);
-                                    }
-                                },_ => {
-                                    msc.start_moving(input_x, input_y);
-                                }
+                    match placed_characters[clicked_index] {
+                        GridSlot::Character(id) => {
+                            if w.are_friends(id, ec.id) == false {
+                                champion.desired_action = DesiredAction::Attack(id);
                             }
+                        },_ => {
+                            //TODO: will need to expand this to mean maybe "target position", where if you are not using an ability
+                            champion.desired_action = DesiredAction::MoveToPosition(input_x, input_y);
                         }
                     }
                 }
             }
         }
 
+
         {
-            let character_movement_query;
-            query_3!(EntityComponent, MovementStateComponent, PositionComponent, w, character_movement_query);
-            for (ec, msc, pc) in character_movement_query {
 
-                if msc.current_move_speed < msc.move_speed {
-                    msc.current_move_speed += 1;
-                }
-
-                if msc.current_move_speed > msc.move_speed {
-                    msc.move_speed = msc.move_speed;
-                }
-
-                if msc.is_moving {
-
-                    match msc.movement_type {
-                        MovementType::AttackMove(id, maximum_range) => {
-                            let (target_position_x, target_position_y) = entity_id_to_position_map[&id];
-                            if game_distance_between_two_points(pc.x, pc.y, target_position_x, target_position_y) <= maximum_range {
-                                msc.is_moving = false;
-                                if let Some(asc) = w.borrow_component_vec::<AttackStateComponent>().as_mut().unwrap().get_mut(ec.id) {
-                                    asc.as_mut().unwrap().start_attacking(id, target_position_x, target_position_y);
+            //TODO: think more about this block below here, something seems off
+            let process_champion_desired_action_query;
+            query_4!(EntityComponent, ChampionComponent, AbilityComponent, PositionComponent, w, process_champion_desired_action_query);
+            for (ec, cc, ac, pc) in process_champion_desired_action_query {
+                let mut champion = champions.get_mut(&(cc.champion_index as usize)).unwrap();
+                match &champion.desired_action {
+                    DesiredAction::Attack(target_id) => {
+                        let mut out_of_range = false;
+                        {
+                            //Attempt to autoattack the target
+                            let active_ability_instance = ability_instance_library.checkout_ability_instance(ac.ability_ids[ac.active_ability]);
+                            match active_ability_instance {
+                                Some(ability_instance) => {
+                                    if ability_instance.ability_state == AbilityState::Ready {
+                                        let ability_target_instance = AbilityTargetContext::new(&w, ec.id, ability_instance, AbilityTarget::Character(*target_id));
+                                        if ability_target_functions.call_target_validator_function(ability_instance.target_validator, ability_target_instance) {
+                                            ability_instance.start_with_target(AbilityTarget::Character(*target_id));
+                                        }
+                                        else {
+                                            out_of_range = true;
+                                        }                                            
+                                    }
+                                },
+                                None => {
                                 }
                             }
-                            else {
-                                msc.destination_x = target_position_x;
-                                msc.destination_y = target_position_y;
+                        }
+                        //If we are out of range move one closer to the character
+                        if out_of_range {
+                            let active_ability_instance = ability_instance_library.checkout_ability_instance(ac.ability_ids[MOVEMENT_ABILITY_INDEX]);
+                            match active_ability_instance {
+                                Some(ability_instance) => {
+                                    if ability_instance.ability_state == AbilityState::Ready {
+                                        let (target_x, target_y) = entity_id_to_position_map[target_id];
+                                        let x_direction = (target_x - pc.x).signum();
+                                        let y_direction = (target_y - pc.y).signum();
+                                        ability_instance.start_with_target(AbilityTarget::Position(pc.x + x_direction, pc.y + y_direction));
+                                    }
+                                },
+                                None => {
+                                }
+                            }
+
+                        }
+                    },
+                    DesiredAction::MoveToPosition(x, y) => {
+                        if *x != pc.x || *y != pc.y {
+                            match ability_instance_library.checkout_ability_instance(ac.ability_ids[MOVEMENT_ABILITY_INDEX]) {
+                                Some(ability_instance) => {                                
+                                    if ability_instance.ability_state == AbilityState::Ready {
+                                        let x_direction = (x - pc.x).signum();
+                                        let y_direction = (y - pc.y).signum();
+                                        ability_instance.start_with_target(AbilityTarget::Position(pc.x + x_direction, pc.y + y_direction));
+                                    }
+                                },
+                                None => {
+    
+                                }
+                            }
+                        } 
+                        else {
+                            champion.desired_action = DesiredAction::Nothing;
+                        }
+
+                    },
+                    DesiredAction::Nothing => {
+                        //Do nothing
+                    }
+                }
+            }
+        }
+
+        //Tick forward any active ability
+        let mut ability_activation_requests = vec![];
+        {
+            let ability_update_query;
+            query_2!(EntityComponent, AbilityComponent, w, ability_update_query);
+            for (ec, ac) in ability_update_query {
+                for ability_instance_id in ac.ability_ids {
+                    if ability_instance_id == 0 {
+                        //0 is used as a flag value
+                        continue;
+                    }
+                    match ability_instance_library.checkout_ability_instance(ability_instance_id) {
+                        Some(ability_instance) => {
+                            match ability_instance.ability_state {
+                                AbilityState::Channeling | AbilityState::Recovering => {
+                                    //TODO: do this else where, make me unhappy
+                                    if ability_instance.advance() {
+                                        //We now have an ability to activate
+                                        ability_activation_requests.push((ec.id, ability_instance_id));
+                                    }
+                                },
+                                _ => {
+
+                                }
                             }
                         },
-                        _ => {
-                            
-                        }
-                    }
-
-                    if msc.current_move_speed == msc.move_speed  {
-                        msc.current_move_speed = 0;
-                        if pc.x != msc.destination_x || pc.y != msc.destination_y {
-                            let mut x_update = msc.destination_x - pc.x;
-                            if x_update != 0 {
-                                x_update = x_update.signum();
-                            }
-
-                            let mut y_update = msc.destination_y - pc.y;
-                            if y_update != 0 {
-                                y_update = y_update.signum();
-                            }
-
-                            pc.update_position(x_update, y_update);
-                            if pc.x == msc.destination_x && pc.y == msc.destination_y {
-                                msc.is_moving = false;
-                            }
+                        None => {
+                            panic!("Ability {} not found for character", ability_instance_id);
                         }
                     }
                 }
             }
         }
 
-        
+        //Actually process those abilities that have reached the end of their channel
+        for (entity_id, ability_instance_id) in ability_activation_requests {
+            let mut ability_instance = ability_instance_library.checkout_ability_instance(ability_instance_id).unwrap();
+            let function_id = ability_instance.action;
+            let context = AbilityContext::new(&mut w, entity_id, &mut rune_system, &mut ability_instance);
+            ability_function_library.call_action_function(function_id, context);
+        } 
+        /*
         {
-            let character_attack_query;
-            query_2!(EntityComponent, AttackStateComponent, w, character_attack_query);
-            for (ec, asc) in character_attack_query {
-                if asc.is_attacking {
-                    if asc.current_channel < asc.channel_timer {
-                        asc.current_channel += 1;
-                    }
+            let zombie_controller_query;
+            query_3!(ZomebieControllerComponent, MovementStateComponent, PositionComponent, w, zombie_controller_query);
+            for (zcc, msc, pc) in zombie_controller_query {
+                match zcc.state {
+                    ZomebieState::Idle{walk_timer} => {
+                        if walk_timer + 1 == ZOMBIE_WALK_TIMER_MAX {
+                            zcc.state = ZomebieState::Idle{walk_timer: 0};
+                            let mut rng = rand::thread_rng();
 
-                    if asc.current_channel >= asc.channel_timer {
-                        asc.is_attacking = false;
-                        asc.current_channel = 0;
-                        let damage_rune = DamageRune::new(ec.id, asc.current_target, 10);
-                        rune_system.add_rune(damage_rune.into());
+                            let initial : i64 = rng.gen_range(0..3);
+                            let x_offset = initial - 1;
+                            let initial : i64 = rng.gen_range(0..3);
+                            let mut y_offset = initial - 1;
+                            if y_offset == 0 && x_offset == 0 {
+                                y_offset += 1;
+                            }
+                            msc.start_moving(pc.x + x_offset, pc.y + y_offset);
+                        }
+                        else {
+                            zcc.state = ZomebieState::Idle{walk_timer: (walk_timer + 1)};
+                        }
+                    },
+                    _ => {
+
                     }
                 }
             }
-        } 
-        
+        }
+        */
         {
             let dead_things_query;
             query_2!(EntityComponent, HealthComponent, w, dead_things_query);
@@ -255,10 +320,10 @@ fn main() {
         }
         
 
+
+
         rune_system.resolve_world_state(&mut w);
-
         w.cleanup_world();
-
         for (_key, connection) in connections.iter_mut() {
             connection.update_player_with_new_game_state(w.to_byte_array(), w.frame_number, &mut server_socket.socket);
         }

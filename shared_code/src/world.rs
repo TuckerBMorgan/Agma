@@ -372,3 +372,23 @@ impl World {
         return final_big_chonky_array;
     }
 }
+
+pub fn make_basic_world() -> World {
+    let mut w = World::new();
+    // put components you want replicated here
+    w.register_type::<EntityComponent>(true);
+    w.register_type::<PositionComponent>(true);
+    w.register_type::<ChampionComponent>(true);
+    w.register_type::<CharacterStateComponent>(true);
+    w.register_type::<MinionComponent>(true);
+    w.register_type::<TeamComponent>(true);
+    w.register_type::<HealthComponent>(true);
+    w.register_type::<RadiusComponent>(true);
+    /*
+    w.register_type::<MovementStateComponent>(true);
+    w.register_type::<AttackStateComponent>(true);
+    */
+    w.register_type::<ZomebieControllerComponent>(true);
+    w.register_type::<AbilityComponent>(true);
+    return w;
+}

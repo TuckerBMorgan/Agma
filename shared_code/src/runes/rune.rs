@@ -69,8 +69,7 @@ impl RuneSystem {
         }
     }
 
-    pub fn handle_move_runes(&mut self, _movement_runes: Vec<Rune>, _world: &mut World) {
-        /*
+    pub fn handle_move_runes(&mut self, mut movement_runes: Vec<Rune>, world: &mut World) {
         let movement_runes : Vec<MoveRune> = movement_runes.iter_mut().map(
             |x|
             match x {
@@ -89,14 +88,12 @@ impl RuneSystem {
         for rune in movement_runes.iter() {
             let current_transform = transforms.get_mut(rune.entity);
             match current_transform {
-                Some(mut current_transform) => {
-                    
-                    current_transform.as_mut().unwrap().move_character(rune.desired_amount);
+                Some(current_transform) => {                    
+                    current_transform.as_mut().unwrap().update_position(rune.offset_x, rune.offset_y);
                 },
                 None => {}
             }
         }
-        */
     }
 
     pub fn handle_damage_runes(&mut self, mut damage_runes: Vec<Rune>, world: &mut World) {
